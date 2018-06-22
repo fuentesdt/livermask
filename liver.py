@@ -3,8 +3,11 @@ import numpy as np
 IMG_DTYPE = np.float32
 SEG_DTYPE = np.uint8
 # run liver.py --builddb
-# run liver.py --anonymize=UID/setup.json
-# run liver.py --buildmodel=AnonUID/anonymizetrain.npy
+# run liver.py --buildmodel=0 --kfolds=5
+# run liver.py --buildmodel=1 --kfolds=5
+# run liver.py --buildmodel=2 --kfolds=5
+# run liver.py --buildmodel=3 --kfolds=5
+# run liver.py --buildmodel=4 --kfolds=5
 # for idbatch in 10 100 ; do for idres in 128 256 ; do for idtr in run_a run_b run_c run_d run_e run_f run_g run_h ; do python Code/loadtraining.py --buildmodel=UID/anonymizetrain.npy --trainingid=$idtr  --trainingresample=$idres --trainingbatch=$idbatch;done; done; done
 # run Code/loadtraining.py --predictimage=UID/Art.raw.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=test.nii.gz
 # setup command line parser to control execution

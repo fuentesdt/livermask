@@ -1,0 +1,7 @@
+
+python liver.py --builddb
+python liver.py --buildmodel=0 --kfolds=5
+python liver.py --buildmodel=1 --kfolds=5
+python liver.py --buildmodel=2 --kfolds=5
+python liver.py --buildmodel=3 --kfolds=5
+python liver.py --buildmodel=4 --kfolds=5
