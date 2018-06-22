@@ -115,10 +115,11 @@ if (options.builddb):
       assert numpytruth.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
 
       # bounding box for each label
-      if( np.max(numpytruth) ==2 ) :
-        (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(numpytruth)
+      if( np.max(numpytruth) ==1 ) :
+        liverboundingbox  = ndimage.find_objects(numpytruth)
+        tumorboundingbox  = None
       else:
-        raise("data error")
+        (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(numpytruth)
 
       # error check
       if( nslice  == numpytruth.shape[2]):
@@ -135,7 +136,8 @@ if (options.builddb):
         axialliverbounds                              = np.repeat(False,nslice  ) 
         axialtumorbounds                             = np.repeat(False,nslice  ) 
         axialliverbounds[liverboundingbox[2]]         = True
-        axialtumorbounds[tumorboundingbox[2]]     = True
+        if (tumorboundingbox != None):
+          axialtumorbounds[tumorboundingbox[2]]       = True
         datamatrix ['axialliverbounds'   ]            = axialliverbounds
         datamatrix ['axialtumorbounds'  ]             = axialtumorbounds
         datamatrix ['imagepath']                      = np.repeat(imagelocation ,nslice  ) 
