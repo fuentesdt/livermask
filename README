@@ -1,6 +1,5 @@
 Usage
 =====
-
 python liver.py --builddb
 python liver.py --buildmodel=0 --kfolds=1
 python liver.py --buildmodel=0 --kfolds=5
@@ -8,3 +7,17 @@ python liver.py --buildmodel=1 --kfolds=5
 python liver.py --buildmodel=2 --kfolds=5
 python liver.py --buildmodel=3 --kfolds=5
 python liver.py --buildmodel=4 --kfolds=5
+python liver.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
+
+Unet code adapted from SPIE Tutorial
+====================================
+https://spie.org/education/courses/coursedetail/SC1235?f=InCompany
+
+Training data from MICCAI Challenge
+====================================
+https://competitions.codalab.org/competitions/17094
+
+Run on KNL at TACC
+====================================
+https://arxiv.org/abs/1709.05011
+

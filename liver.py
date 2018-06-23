@@ -2,14 +2,7 @@ import numpy as np
 
 IMG_DTYPE = np.float32
 SEG_DTYPE = np.uint8
-# run liver.py --builddb
-# run liver.py --buildmodel=0 --kfolds=1
-# run liver.py --buildmodel=0 --kfolds=5
-# run liver.py --buildmodel=1 --kfolds=5
-# run liver.py --buildmodel=2 --kfolds=5
-# run liver.py --buildmodel=3 --kfolds=5
-# run liver.py --buildmodel=4 --kfolds=5
-# run liver.py --predictimage=UID/Art.raw.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=test.nii.gz
+
 # setup command line parser to control execution
 from optparse import OptionParser
 parser = OptionParser()
@@ -64,6 +57,9 @@ parser.add_option( "--kfolds",
 parser.add_option( "--buildmodel",
                   type="int", dest="buildmodel", default=None,
                   help="setup info", metavar="int")
+parser.add_option( "--rootlocation",
+                  action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS',
+                  help="setup info", metavar="string")
 (options, args) = parser.parse_args()
 
 
@@ -83,14 +79,13 @@ if (options.builddb):
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
 
   # load all data from csv
-  dbfile="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/trainingdata.csv"
-  rootlocation="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS"
+  dbfile="./trainingdata.csv"
   totalnslice = 0 
   with open(dbfile, 'r') as csvfile:
     myreader = csv.DictReader(csvfile, delimiter=',')
     for row in myreader:
-      imagelocation = '%s/%s' % (rootlocation,row['image'])
-      truthlocation = '%s/%s' % (rootlocation,row['label'])
+      imagelocation = '%s/%s' % (options.rootlocation,row['image'])
+      truthlocation = '%s/%s' % (options.rootlocation,row['label'])
       print(imagelocation,truthlocation )
 
       # load nifti file
