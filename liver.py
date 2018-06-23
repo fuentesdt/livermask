@@ -84,7 +84,6 @@ if (options.builddb):
 
   # load all data from csv
   dbfile="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/trainingdata.csv"
-  dbfile="testdata.csv"
   rootlocation="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS"
   totalnslice = 0 
   with open(dbfile, 'r') as csvfile:
