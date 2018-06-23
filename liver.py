@@ -3,13 +3,13 @@ import numpy as np
 IMG_DTYPE = np.float32
 SEG_DTYPE = np.uint8
 # run liver.py --builddb
+# run liver.py --buildmodel=0 --kfolds=1
 # run liver.py --buildmodel=0 --kfolds=5
 # run liver.py --buildmodel=1 --kfolds=5
 # run liver.py --buildmodel=2 --kfolds=5
 # run liver.py --buildmodel=3 --kfolds=5
 # run liver.py --buildmodel=4 --kfolds=5
-# for idbatch in 10 100 ; do for idres in 128 256 ; do for idtr in run_a run_b run_c run_d run_e run_f run_g run_h ; do python Code/loadtraining.py --buildmodel=UID/anonymizetrain.npy --trainingid=$idtr  --trainingresample=$idres --trainingbatch=$idbatch;done; done; done
-# run Code/loadtraining.py --predictimage=UID/Art.raw.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=test.nii.gz
+# run liver.py --predictimage=UID/Art.raw.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=test.nii.gz
 # setup command line parser to control execution
 from optparse import OptionParser
 parser = OptionParser()
@@ -473,7 +473,6 @@ elif (options.buildmodel!= None):
   # The liver neuron should also be active for lesions within the liver
   liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   y_train_one_hot[:,:,:,1]=liver
-  
 
   # output location
   logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.buildmodel)
@@ -483,9 +482,42 @@ elif (options.buildmodel!= None):
   import os
   os.system ('mkdir -p %s' % logfileoutputdir)
 
+  # tensor callbacks
   from keras.callbacks import TensorBoard
   tensorboard = TensorBoard(log_dir=logfileoutputdir, histogram_freq=0, write_graph=True, write_images=False)
-  
+
+  # callback to save best model 
+  from keras.callbacks import Callback as CallbackBase
+  class MyHistories(CallbackBase):
+      def on_train_begin(self, logs={}):
+          self.min_valloss = np.inf
+   
+      def on_train_end(self, logs={}):
+          return
+   
+      def on_epoch_begin(self, epoch, logs={}):
+          return
+   
+      def on_epoch_end(self, epoch, logs={}):
+          if logs.get('val_loss')< self.min_valloss :
+             self.min_valloss = logs.get('val_loss')
+             # https://machinelearningmastery.com/save-load-keras-deep-learning-models/
+             # serialize model to JSON
+             model_json = model.to_json()
+             with open("%s/tumormodelunet.json" % logfileoutputdir , "w") as json_file:
+                 json_file.write(model_json)
+             # serialize weights to HDF5
+             model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
+             print("Saved model to disk - val_loss", self.min_valloss  )
+          return
+   
+      def on_batch_begin(self, batch, logs={}):
+          return
+   
+      def on_batch_end(self, batch, logs={}):
+          return
+  callbacksave = MyHistories()
+
   # dictionary of models to evaluate
   modeldict = {'half': get_batchnorm_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),'full': get_bnormfull_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
   model = modeldict[options.trainingmodel] 
@@ -505,7 +537,7 @@ elif (options.buildmodel!= None):
   history = model.fit(x_train[TRAINING_SLICES ,:,:,np.newaxis],
                       y_train_one_hot[TRAINING_SLICES ],
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
-                      callbacks = [tensorboard],
+                      callbacks = [tensorboard,callbacksave],
                       batch_size=options.trainingbatch, epochs=1000)
                       #batch_size=10, epochs=300
   
@@ -526,16 +558,8 @@ elif (options.buildmodel!= None):
     validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
     validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
   
-  # https://machinelearningmastery.com/save-load-keras-deep-learning-models/
-  # serialize model to JSON
-  model_json = model.to_json()
-  with open("%s/tumormodelunet.json" % logfileoutputdir , "w") as json_file:
-      json_file.write(model_json)
-  # serialize weights to HDF5
-  model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
-  print("Saved model to disk")
 ##########################
-# debugging
+# apply model to new data
 ##########################
 elif (options.predictmodel != None and options.predictimage != None and options.segmentation != None ):
   import json
@@ -581,50 +605,6 @@ elif (options.predictmodel != None and options.predictimage != None and options.
     imgnii = nib.Nifti1Image(segmentexpect[:,:,:,jjj] , imagepredict.affine )
     imgnii.to_filename( options.segmentation.replace('.nii.gz','%d.nii.gz' % jjj) )
 
-##########################
-# debugging
-##########################
-elif (options.debug ):
-  ORIGINAL_PATH = '../DeepLearningTutorialFeb2018/input/singleSlicePNGs/originals/'
-  MASK_PATH = '../DeepLearningTutorialFeb2018/input/singleSlicePNGs/masks/'
-  from os import listdir
-  from os.path import join, abspath
-  import matplotlib.pyplot as plt # not only for plotting, but also for imread()
-  
-  original_files = [join(ORIGINAL_PATH,f) for f in listdir(ORIGINAL_PATH) if f.endswith('.png')]
-  mask_files     = [join(MASK_PATH,f)     for f in listdir(MASK_PATH)     if f.endswith('.png')]
-  # File reading is not deterministic, i.e. not in any particular order. This means, the two arrays may be out of sync. Sorting fixes this.
-  original_files = sorted(original_files)
-  mask_files     = sorted(mask_files)
-  assert all([orig.replace('/originals', '/masks') in mask_files for orig in original_files])
-  assert len(original_files) == len(mask_files)
-  np.random.seed(seed=0) # ensure we get the same results each time we run the code
-  permuted_file_indexer = np.random.permutation(len(original_files))
-  
-  
-  # In[6]:
-  
-  
-  # inspect some filename pairs (negative indices count from the back, -1 is the last item)
-  for a in [0,300,1000,1500,2000,-1]:
-      print(original_files[a], mask_files[a])
-  
-  
-  # In[7]:
-  
-  
-  # the images have sizes between 79x79 and 125x125 pixels;
-  # set up cropping for the remainder of the code
-  cropping = slice(0,76) # slice off the first 76 voxels in order to ensure a common size
-  #cropping = slice(None) # do not crop
-  
-  # loading into a single array and apply random permutation:
-  x_train = np.array([plt.imread(original_files[index])[cropping,cropping] for index in permuted_file_indexer])
-  y_train = np.array([plt.imread(mask_files[index])[cropping,cropping]*255 for index in permuted_file_indexer])
-  
-  # Figure out the smallest image -- this is only needed if not training on patches, but full slices. 
-  # 
-  print("min size: %d -- max size: %d" % (np.min([np.shape(slice) for slice in x_train]), np.max([np.shape(slice) for slice in x_train])))
 ##########################
 # print help
 ##########################
