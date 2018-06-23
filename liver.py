@@ -8,7 +8,10 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option( "--builddb",
                   action="store_true", dest="builddb", default=False,
-                  help="FILE containing image info", metavar="FILE")
+                  help="load all training data into npy", metavar="FILE")
+parser.add_option( "--trainmodel",
+                  action="store_true", dest="trainmodel", default=False,
+                  help="train model", metavar="FILE")
 parser.add_option( "--debug",
                   action="store_true", dest="debug", default=False,
                   help="compare tutorial dtype", metavar="Bool")
@@ -45,6 +48,9 @@ parser.add_option( "--trainingloss",
 parser.add_option( "--trainingsolver",
                   action="store", dest="trainingsolver", default='adadelta',
                   help="setup info", metavar="string")
+parser.add_option( "--dbfile",
+                  action="store", dest="dbfile", default="./trainingdata.csv",
+                  help="training data file", metavar="string")
 parser.add_option( "--trainingresample",
                   type="int", dest="trainingresample", default=256,
                   help="setup info", metavar="int")
@@ -54,14 +60,50 @@ parser.add_option( "--trainingbatch",
 parser.add_option( "--kfolds",
                   type="int", dest="kfolds", default=5,
                   help="setup info", metavar="int")
-parser.add_option( "--buildmodel",
-                  type="int", dest="buildmodel", default=None,
+parser.add_option( "--idfold",
+                  type="int", dest="idfold", default=0,
                   help="setup info", metavar="int")
 parser.add_option( "--rootlocation",
                   action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS',
                   help="setup info", metavar="string")
 (options, args) = parser.parse_args()
 
+# output location
+logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+
+# build data base from CSV file
+def GetDataDictionary():
+  import csv
+  CSVDictionary = {}
+  with open(options.dbfile, 'r') as csvfile:
+    myreader = csv.DictReader(csvfile, delimiter=',')
+    for row in myreader:
+       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label']}  
+  return CSVDictionary
+
+
+# setup kfolds
+def GetSetupKfolds(numfolds,idfold):
+  import csv
+  from sklearn.model_selection import KFold
+  # get id from setupfiles
+  dataidsfull = []
+  with open(options.dbfile, 'r') as csvfile:
+    myreader = csv.DictReader(csvfile, delimiter=',')
+    for row in myreader:
+       dataidsfull.append( int( row['dataid']))
+  if (numfolds < idfold or numfolds < 1):
+     raise("data input error")
+  # split in folds
+  if (numfolds > 1):
+     kf = KFold(n_splits=numfolds)
+     allkfolds = [ (train_index, test_index) for train_index, test_index in kf.split(dataidsfull )]
+     train_index = allkfolds[idfold][0]
+     test_index  = allkfolds[idfold][1]
+  else:
+     train_index = np.array(dataidsfull )
+     test_index  = None  
+  return (train_index,test_index)
 
 ##########################
 # preprocess database and store to disk
@@ -79,9 +121,8 @@ if (options.builddb):
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
 
   # load all data from csv
-  dbfile="./trainingdata.csv"
   totalnslice = 0 
-  with open(dbfile, 'r') as csvfile:
+  with open(options.dbfile, 'r') as csvfile:
     myreader = csv.DictReader(csvfile, delimiter=',')
     for row in myreader:
       imagelocation = '%s/%s' % (options.rootlocation,row['image'])
@@ -138,29 +179,19 @@ if (options.builddb):
         print('training data error image[2] = %d , truth[2] = %d ' % (nslice,numpytruth.shape[2]))
 
   # save numpy array to disk
-  np.save('./trainingdata.npy', numpydatabase )
+  np.save(options.dbfile.replace('.csv','.npy'), numpydatabase )
 
 ##########################
 # build NN model from anonymized data
 ##########################
-elif (options.buildmodel!= None):
+elif (options.trainmodel ):
 
   # load database
   if 'numpydatabase' not in dir():
-      numpydatabase = np.load('./trainingdata.npy')
+      numpydatabase = np.load(options.dbfile.replace('.csv','.npy'))
 
-  # setup kfolds
-  from sklearn.model_selection import KFold
-  dataidsfull = np.unique(numpydatabase['dataid'])
-  if (options.kfolds > 1):
-     kf = KFold(n_splits=options.kfolds)
-     allkfolds = [ (train_index, test_index) for train_index, test_index in kf.split(dataidsfull )]
-     train_index = allkfolds[options.buildmodel][0]
-     test_index  = allkfolds[options.buildmodel][1]
-  else:
-     train_index = dataidsfull 
-     test_index  = None  
-     options.buildmodel = 0 
+  #setup kfolds
+  (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
 
   # get subset
   trainingsubset =  numpydatabase[np.isin(numpydatabase['dataid'], train_index )]
@@ -468,9 +499,6 @@ elif (options.buildmodel!= None):
   liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   y_train_one_hot[:,:,:,1]=liver
 
-  # output location
-  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.buildmodel)
-     
   print(logfileoutputdir)
   # ensure directory exists
   import os
@@ -552,6 +580,16 @@ elif (options.buildmodel!= None):
     validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
     validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
   
+##########################
+# apply model to test set
+##########################
+elif (options.applytestset):
+   (xxx,yyy) = GetSetupKfolds(4,1)
+   zzz = GetDataDictionary()
+   for idtest in yyy:
+      cvtestcmd = "python ./liver.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s/label-%04d.nii.gz"  % (zzz[idtest]['image'],logfileoutputdir,logfileoutputdir,idtest)
+      print (cvtestcmd) 
+
 ##########################
 # apply model to new data
 ##########################
