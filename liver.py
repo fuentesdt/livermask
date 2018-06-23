@@ -460,9 +460,6 @@ elif (options.buildmodel!= None):
   def dice_metric_two(y_true, y_pred):
       batchdiceloss =  dice_imageloss(y_true, y_pred)
       return -batchdiceloss[:,2]
-  def dice_metric_three(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,3]
 
   # Convert the labels into a one-hot representation
   from keras.utils.np_utils import to_categorical
@@ -490,7 +487,7 @@ elif (options.buildmodel!= None):
   tensorboard = TensorBoard(log_dir=logfileoutputdir, histogram_freq=0, write_graph=True, write_images=False)
   
   # dictionary of models to evaluate
-  modeldict = {'half': get_batchnorm_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=4),'full': get_bnormfull_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=4)}
+  modeldict = {'half': get_batchnorm_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),'full': get_bnormfull_unet(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
   model = modeldict[options.trainingmodel] 
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss}
@@ -501,7 +498,7 @@ elif (options.buildmodel!= None):
   #             function:_weighted_masked_objective
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
-  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two,dice_metric_three],optimizer=options.trainingsolver)
+  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=options.trainingsolver)
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
@@ -512,10 +509,8 @@ elif (options.buildmodel!= None):
                       batch_size=options.trainingbatch, epochs=1000)
                       #batch_size=10, epochs=300
   
-  
   # ### Assignment: Extend the plot function to handle multiple classes.
   # Then, activate the visualization callback in the training again. Try to find a slice with more than one output class to see the success.
-  
 
   # output predictions
   if (options.trainingid == 'run_a'):
