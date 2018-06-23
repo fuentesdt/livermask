@@ -44,7 +44,7 @@ parser.add_option( "--trainingid",
                   action="store", dest="trainingid", default='run_a',
                   help="setup info", metavar="Path")
 parser.add_option( "--trainingmodel",
-                  action="store", dest="trainingmodel", default='half',
+                  action="store", dest="trainingmodel", default='full',
                   help="setup info", metavar="string")
 parser.add_option( "--trainingloss",
                   action="store", dest="trainingloss", default='dscimg',
@@ -53,14 +53,17 @@ parser.add_option( "--trainingsolver",
                   action="store", dest="trainingsolver", default='adadelta',
                   help="setup info", metavar="string")
 parser.add_option( "--trainingresample",
-                  type="int", dest="trainingresample", default=128,
+                  type="int", dest="trainingresample", default=256,
                   help="setup info", metavar="int")
 parser.add_option( "--trainingbatch",
-                  type="int", dest="trainingbatch", default=10,
+                  type="int", dest="trainingbatch", default=4,
+                  help="setup info", metavar="int")
+parser.add_option( "--kfolds",
+                  type="int", dest="kfolds", default=5,
                   help="setup info", metavar="int")
 parser.add_option( "--buildmodel",
-                  action="store", dest="buildmodel", default=None,
-                  help="setup info", metavar="Path")
+                  type="int", dest="buildmodel", default=None,
+                  help="setup info", metavar="int")
 (options, args) = parser.parse_args()
 
 
@@ -72,17 +75,6 @@ if (options.builddb):
   import nibabel as nib  
   from scipy import ndimage
 
-  from sklearn.model_selection import KFold
-  X = np.array([[1, 2], [3, 4], [1, 2], [3, 4]])
-  y = np.array([1, 2, 3, 4])
-  kf = KFold(n_splits=2)
-  kf.get_n_splits(X)
-  print(kf)  
-  for train_index, test_index in kf.split(X):
-     print("TRAIN:", train_index, "TEST:", test_index)
-     X_train, X_test = X[train_index], X[test_index]
-     y_train, y_test = y[train_index], y[test_index]
-
   # create  custom data frame database type
   globalexpectedpixel=512
   mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float32' %(globalexpectedpixel,globalexpectedpixel)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (globalexpectedpixel,globalexpectedpixel))]
@@ -92,6 +84,7 @@ if (options.builddb):
 
   # load all data from csv
   dbfile="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/trainingdata.csv"
+  dbfile="testdata.csv"
   rootlocation="/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS"
   totalnslice = 0 
   with open(dbfile, 'r') as csvfile:
@@ -116,7 +109,7 @@ if (options.builddb):
 
       # bounding box for each label
       if( np.max(numpytruth) ==1 ) :
-        liverboundingbox  = ndimage.find_objects(numpytruth)
+        (liverboundingbox,)  = ndimage.find_objects(numpytruth)
         tumorboundingbox  = None
       else:
         (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(numpytruth)
@@ -134,7 +127,7 @@ if (options.builddb):
         #datamatrix ['nslice' ]      = np.repeat(nslice,nslice  ) 
         # id the slices within the bounding box
         axialliverbounds                              = np.repeat(False,nslice  ) 
-        axialtumorbounds                             = np.repeat(False,nslice  ) 
+        axialtumorbounds                              = np.repeat(False,nslice  ) 
         axialliverbounds[liverboundingbox[2]]         = True
         if (tumorboundingbox != None):
           axialtumorbounds[tumorboundingbox[2]]       = True
@@ -151,56 +144,49 @@ if (options.builddb):
         print('training data error image[2] = %d , truth[2] = %d ' % (nslice,numpytruth.shape[2]))
 
   # save numpy array to disk
-  np.save('trainingdata.npy', numpydatabase )
-
-##########################
-# build NN model
-##########################
-elif (options.anonymize != None):
-  import json
-  # load database
-  numpydatabase = np.load(options.inputModelData)
-
-  # get setup info
-  with open(options.anonymize) as json_data:
-      setupdata = json.load(json_data)
-      mrn = setupdata[0]['mrn']  
-      print(setupdata)
-
-  # get subset
-  trainingsubset =  numpydatabase[numpydatabase['mrn'] != mrn ]
-
-  # ensure we get the same results each time we run the code
-  np.random.seed(seed=0) 
-  np.random.shuffle(trainingsubset )
-
-  # subset within bounding box that has both viable and necrosis tissue
-  trainingsubsetmasked    =  trainingsubset[trainingsubset['axialnecrosisbounds'] == True  ] 
-  trainingsubsetmasked    =  trainingsubsetmasked[trainingsubsetmasked['axialviablebounds'] == True  ] 
-
-  # add images outside bounding box to training data ? 
-  trainingsubsetnotmasked =  trainingsubset[trainingsubset['axialliverbounds'] == False ]
-
-  # copy pointers
-  anonnumpydb =trainingsubsetmasked[['imagedata','truthdata']]
-  x_train=anonnumpydb['imagedata']  
-  y_train=trainingsubsetmasked['truthdata'] 
-
-  # output location
-  anonymizeoutputlocation =  '/'.join(options.anonymize.split('/')[:-1])
-  np.save("%s/anonymizetrain.npy" % anonymizeoutputlocation,anonnumpydb )
-  
-  import nibabel as nib  
-  print ( "writing training data for reference " ) 
-  imgnii = nib.Nifti1Image(x_train[: ,:,:] , None )
-  imgnii.to_filename( '%s/trainingimg.nii.gz' % anonymizeoutputlocation )
-  segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
-  segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
+  np.save('./trainingdata.npy', numpydatabase )
 
 ##########################
 # build NN model from anonymized data
 ##########################
 elif (options.buildmodel!= None):
+
+  # load database
+  if 'numpydatabase' not in dir():
+      numpydatabase = np.load('./trainingdata.npy')
+
+  # setup kfolds
+  from sklearn.model_selection import KFold
+  dataidsfull = np.unique(numpydatabase['dataid'])
+  if (options.kfolds > 1):
+     kf = KFold(n_splits=options.kfolds)
+     allkfolds = [ (train_index, test_index) for train_index, test_index in kf.split(dataidsfull )]
+     train_index = allkfolds[options.buildmodel][0]
+     test_index  = allkfolds[options.buildmodel][1]
+  else:
+     train_index = dataidsfull 
+     test_index  = None  
+     options.buildmodel = 0 
+
+  # get subset
+  trainingsubset =  numpydatabase[np.isin(numpydatabase['dataid'], train_index )]
+
+  # ensure we get the same results each time we run the code
+  np.random.seed(seed=0) 
+  np.random.shuffle(trainingsubset )
+
+  # subset within bounding box that has liver
+  trainingsubsetmasked    =  trainingsubset[trainingsubset['axialliverbounds'] == True ]
+  totnslice = len(trainingsubsetmasked)
+  print("nslice ",totnslice )
+
+  # import nibabel as nib  
+  # print ( "writing training data for reference " ) 
+  # imgnii = nib.Nifti1Image(x_train[: ,:,:] , None )
+  # imgnii.to_filename( '%s/trainingimg.nii.gz' % anonymizeoutputlocation )
+  # segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
+  # segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
+
   from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D
   from keras.models import Model, Sequential
 
@@ -220,20 +206,15 @@ elif (options.buildmodel!= None):
   
   # In[16]:
   
-  # load database
-  anontrainingdata = np.load(options.buildmodel)
-  totnslice = len(anontrainingdata)
 
   # load training data
   import skimage.transform
-  x_train=skimage.transform.resize(anontrainingdata['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
-  y_train=skimage.transform.resize(anontrainingdata['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
-
-  # need parameter study on best way to split
-  studydict = {'run_a':slice(0  ,300), 'run_b':slice(0  ,500), 'run_c':slice(0  ,700), 'run_d':slice(0  ,900), 'run_e':slice(0  ,1100),'run_f':slice(0  ,1300),'run_g':slice(0  ,1500) ,'run_h':slice(0  ,1700)  }
-
-  TRAINING_SLICES      = studydict[options.trainingid]
-  VALIDATION_SLICES    = slice(1700,1800)
+  x_train=skimage.transform.resize(trainingsubsetmasked['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
+  y_train=skimage.transform.resize(trainingsubsetmasked['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
+  studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
+  slicesplit =  int(studydict[options.trainingid] * totnslice )
+  TRAINING_SLICES      = slice(0,slicesplit)
+  VALIDATION_SLICES    = slice(slicesplit,totnslice)
   
 
   # DOC - Conv2D trainable parametes should be kernelsize_x * kernelsize_y * input_channels * output_channels
@@ -498,13 +479,13 @@ elif (options.buildmodel!= None):
   
 
   # output location
-  outputlocation =  '/'.join(options.buildmodel.split('/')[:-1])
-  logfileoutputdir= '%s/tblog/%s/%s/%s/%d/%s/%03d' % (outputlocation,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch)
+  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.buildmodel)
+     
+  print(logfileoutputdir)
   # ensure directory exists
   import os
   os.system ('mkdir -p %s' % logfileoutputdir)
 
-  
   from keras.callbacks import TensorBoard
   tensorboard = TensorBoard(log_dir=logfileoutputdir, histogram_freq=0, write_graph=True, write_images=False)
   
