@@ -1,6 +1,6 @@
 import numpy as np
 
-IMG_DTYPE = np.float32
+IMG_DTYPE = np.float16
 SEG_DTYPE = np.uint8
 
 # setup command line parser to control execution
@@ -12,6 +12,9 @@ parser.add_option( "--builddb",
 parser.add_option( "--trainmodel",
                   action="store_true", dest="trainmodel", default=False,
                   help="train model", metavar="FILE")
+parser.add_option( "--setuptestset",
+                  action="store_true", dest="setuptestset", default=False,
+                  help="cross validate test set", metavar="FILE")
 parser.add_option( "--debug",
                   action="store_true", dest="debug", default=False,
                   help="compare tutorial dtype", metavar="Bool")
@@ -68,9 +71,6 @@ parser.add_option( "--rootlocation",
                   help="setup info", metavar="string")
 (options, args) = parser.parse_args()
 
-# output location
-logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
-
 # build data base from CSV file
 def GetDataDictionary():
   import csv
@@ -115,7 +115,7 @@ if (options.builddb):
 
   # create  custom data frame database type
   globalexpectedpixel=512
-  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float32' %(globalexpectedpixel,globalexpectedpixel)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (globalexpectedpixel,globalexpectedpixel))]
+  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float16' %(globalexpectedpixel,globalexpectedpixel)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (globalexpectedpixel,globalexpectedpixel))]
 
   # initialize empty dataframe
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
@@ -499,6 +499,9 @@ elif (options.trainmodel ):
   liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   y_train_one_hot[:,:,:,1]=liver
 
+  # output location
+  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+
   print(logfileoutputdir)
   # ensure directory exists
   import os
@@ -583,12 +586,28 @@ elif (options.trainmodel ):
 ##########################
 # apply model to test set
 ##########################
-elif (options.applytestset):
-   (xxx,yyy) = GetSetupKfolds(4,1)
-   zzz = GetDataDictionary()
-   for idtest in yyy:
-      cvtestcmd = "python ./liver.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s/label-%04d.nii.gz"  % (zzz[idtest]['image'],logfileoutputdir,logfileoutputdir,idtest)
-      print (cvtestcmd) 
+elif (options.setuptestset):
+  databaseinfo = GetDataDictionary()
+
+  maketargetlist = []
+  # open makefile
+  with open('kfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
+    for iii in range(options.kfolds):
+      (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
+      for idtest in test_set:
+         uidoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+         # write target
+         segmaketarget = '%s/label-%04d.nii.gz' % (uidoutputdir,idtest)
+         maketargetlist.append(segmaketarget )
+         imageprereq = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
+         cvtestcmd = "python ./liver.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s"  % (imageprereq ,uidoutputdir,segmaketarget )
+         fileHandle.write('%s: %s\n' % (segmaketarget ,imageprereq ) )
+         fileHandle.write('\t%s\n' % cvtestcmd)
+
+  # build job list
+  with open('kfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
+  with open('kfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "cvtest: %s \n" % ' '.join(maketargetlist) + datastream)
+
 
 ##########################
 # apply model to new data
