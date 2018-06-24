@@ -24,9 +24,6 @@ parser.add_option( "--ModelID",
 parser.add_option( "--outputModelBase",
                   action="store", dest="outputModelBase", default=None,
                   help="output location ", metavar="Path")
-parser.add_option( "--inputModelData",
-                  action="store", dest="inputModelData", default="datalocation/TrainingImages.npy",
-                  help="database file", metavar="Path")
 parser.add_option( "--predictmodel",
                   action="store", dest="predictmodel", default=None,
                   help="apply model to image", metavar="Path")
@@ -71,6 +68,8 @@ parser.add_option( "--rootlocation",
                   help="setup info", metavar="string")
 (options, args) = parser.parse_args()
 
+
+_globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample ),
 # build data base from CSV file
 def GetDataDictionary():
   import csv
@@ -112,10 +111,11 @@ if (options.builddb):
   import csv
   import nibabel as nib  
   from scipy import ndimage
+  import skimage.transform
 
   # create  custom data frame database type
   globalexpectedpixel=512
-  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float16' %(globalexpectedpixel,globalexpectedpixel)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (globalexpectedpixel,globalexpectedpixel))]
+  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float16' %(options.trainingresample,options.trainingresample)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
 
   # initialize empty dataframe
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
@@ -135,22 +135,25 @@ if (options.builddb):
       # error check
       assert numpyimage.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
       nslice = numpyimage.shape[2]
+      resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
 
       # load nifti file
       truthdata = nib.load(truthlocation )
       numpytruth= truthdata.get_data().astype(SEG_DTYPE)
       # error check
       assert numpytruth.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
+      assert nslice  == numpytruth.shape[2]
+      restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
 
       # bounding box for each label
-      if( np.max(numpytruth) ==1 ) :
-        (liverboundingbox,)  = ndimage.find_objects(numpytruth)
+      if( np.max(restruth) ==1 ) :
+        (liverboundingbox,)  = ndimage.find_objects(restruth)
         tumorboundingbox  = None
       else:
-        (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(numpytruth)
+        (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(restruth)
 
       # error check
-      if( nslice  == numpytruth.shape[2]):
+      if( nslice  == restruth.shape[2]):
         # custom data type to subset  
         datamatrix = np.zeros(nslice  , dtype=mydatabasetype )
         
@@ -170,16 +173,16 @@ if (options.builddb):
         datamatrix ['axialtumorbounds'  ]             = axialtumorbounds
         datamatrix ['imagepath']                      = np.repeat(imagelocation ,nslice  ) 
         datamatrix ['truthpath']                      = np.repeat(truthlocation ,nslice  ) 
-        datamatrix ['imagedata']                      = numpyimage.transpose(2,1,0) 
-        datamatrix ['truthdata']                      = numpytruth.transpose(2,1,0)  
+        datamatrix ['imagedata']                      = resimage.transpose(2,1,0) 
+        datamatrix ['truthdata']                      = restruth.transpose(2,1,0)  
         numpydatabase = np.hstack((numpydatabase,datamatrix))
         # count total slice for QA
         totalnslice = totalnslice + nslice 
       else:
-        print('training data error image[2] = %d , truth[2] = %d ' % (nslice,numpytruth.shape[2]))
+        print('training data error image[2] = %d , truth[2] = %d ' % (nslice,restruth.shape[2]))
 
   # save numpy array to disk
-  np.save(options.dbfile.replace('.csv','.npy'), numpydatabase )
+  np.save( _globalnpfile,numpydatabase )
 
 ##########################
 # build NN model from anonymized data
@@ -188,7 +191,7 @@ elif (options.trainmodel ):
 
   # load database
   print('loading memory map db for large dataset')
-  numpydatabase = np.load(options.dbfile.replace('.csv','.npy'),mmap_mode='r')
+  numpydatabase = np.load(_globalnpfile,mmap_mode='r')
 
   #setup kfolds
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
@@ -216,6 +219,14 @@ elif (options.trainmodel ):
   totnslice = len(trainingsubset)
   print("nslice ",totnslice )
 
+  # load training data as views
+  x_train=trainingsubset['imagedata']
+  y_train=trainingsubset['truthdata']
+  studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
+  slicesplit =  int(studydict[options.trainingid] * totnslice )
+  TRAINING_SLICES      = slice(0,slicesplit)
+  VALIDATION_SLICES    = slice(slicesplit,totnslice)
+
   # import nibabel as nib  
   # print ( "writing training data for reference " ) 
   # imgnii = nib.Nifti1Image(x_train[: ,:,:] , None )
@@ -242,19 +253,6 @@ elif (options.trainmodel ):
   
   # In[16]:
   
-
-  # load training data
-  print('downsample and training/validation split...')
-  import skimage.transform
-  x_train=skimage.transform.resize(trainingsubset['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
-  y_train=skimage.transform.resize(trainingsubset['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
-  del trainingsubset
-  studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
-  slicesplit =  int(studydict[options.trainingid] * totnslice )
-  TRAINING_SLICES      = slice(0,slicesplit)
-  VALIDATION_SLICES    = slice(slicesplit,totnslice)
-  
-
   # DOC - Conv2D trainable parametes should be kernelsize_x * kernelsize_y * input_channels * output_channels
   # DOC -  2d convolution over each input channel is summed and provides one output channel.  each output channel has a independent set of kernel weights to train.
   # https://stackoverflow.com/questions/43306323/keras-conv2d-and-input-channels
