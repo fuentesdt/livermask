@@ -195,15 +195,17 @@ elif (options.trainmodel ):
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
 
   # get subset
-  trainingsubset =  numpydatabase[np.isin(numpydatabase['dataid'], train_index )]
+  print('get subset...')
+  trainingsubsetmasked    =  numpydatabase[numpydatabase['axialliverbounds'] == True ]
+  dbtrainindex = np.isin(trainingsubsetmasked['dataid'], train_index )
+  trainingsubset = trainingsubsetmasked[dbtrainindex  == True ]
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
   np.random.shuffle(trainingsubset )
 
   # subset within bounding box that has liver
-  trainingsubsetmasked    =  trainingsubset[trainingsubset['axialliverbounds'] == True ]
-  totnslice = len(trainingsubsetmasked)
+  totnslice = len(trainingsubset)
   print("nslice ",totnslice )
 
   # import nibabel as nib  
@@ -235,8 +237,8 @@ elif (options.trainmodel ):
 
   # load training data
   import skimage.transform
-  x_train=skimage.transform.resize(trainingsubsetmasked['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
-  y_train=skimage.transform.resize(trainingsubsetmasked['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
+  x_train=skimage.transform.resize(trainingsubset['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
+  y_train=skimage.transform.resize(trainingsubset['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
   studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
   slicesplit =  int(studydict[options.trainingid] * totnslice )
   TRAINING_SLICES      = slice(0,slicesplit)
