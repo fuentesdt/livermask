@@ -69,7 +69,7 @@ parser.add_option( "--rootlocation",
 (options, args) = parser.parse_args()
 
 
-_globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample ),
+_globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
 # build data base from CSV file
 def GetDataDictionary():
   import csv
@@ -196,11 +196,9 @@ elif (options.trainmodel ):
   #setup kfolds
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
 
-  # get subset 
-  # copy only data subsets into memory 
   # uses 'views' for efficient memory usage
   # https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.indexing.html
-  print('get subset...')
+  print('copy data subsets into memory...')
   axialbounds = numpydatabase['axialliverbounds'].copy()
   dataidarray = numpydatabase['dataid'].copy()
   dbtrainindex= np.isin(dataidarray, train_index )
