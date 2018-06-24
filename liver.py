@@ -191,7 +191,8 @@ elif (options.trainmodel ):
 
   # load database
   print('loading memory map db for large dataset')
-  numpydatabase = np.load(_globalnpfile,mmap_mode='r')
+  #numpydatabase = np.load(_globalnpfile,mmap_mode='r')
+  numpydatabase = np.load(_globalnpfile)
 
   #setup kfolds
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
@@ -199,15 +200,18 @@ elif (options.trainmodel ):
   # uses 'views' for efficient memory usage
   # https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.indexing.html
   print('copy data subsets into memory...')
-  axialbounds = numpydatabase['axialliverbounds'].copy()
-  dataidarray = numpydatabase['dataid'].copy()
+  #axialbounds = numpydatabase['axialliverbounds'].copy()
+  #dataidarray = numpydatabase['dataid'].copy()
+  axialbounds = numpydatabase['axialliverbounds']
+  dataidarray = numpydatabase['dataid']
   dbtrainindex= np.isin(dataidarray, train_index )
   subsetidx   = np.all( np.vstack((axialbounds ,dbtrainindex)) , axis=0 )
   # error check
   if  np.sum(subsetidx   ) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
     raise("data error")
   print('copy memory map from disk to RAM...')
-  trainingsubset = numpydatabase[subsetidx   ].copy()
+  #trainingsubset = numpydatabase[subsetidx   ].copy()
+  trainingsubset = numpydatabase[subsetidx   ]
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
