@@ -60,4 +60,4 @@ export KMP_SETTINGS=1
 export KMP_AFFINITY=granularity=fine,verbose,compact,1,0
 
 # Launch MPI code... 
-mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./liver.py --trainmodel --idfold=4 --kfolds=5
+mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./liver.py --trainmodel --idfold=4 --kfolds=5 --trainingbatch=50
