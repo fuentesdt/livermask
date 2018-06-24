@@ -187,18 +187,26 @@ if (options.builddb):
 elif (options.trainmodel ):
 
   # load database
-  if 'numpydatabase' not in dir():
-      print('loading db...')
-      numpydatabase = np.load(options.dbfile.replace('.csv','.npy'))
+  print('loading memory map db for large dataset')
+  numpydatabase = np.load(options.dbfile.replace('.csv','.npy'),mmap_mode='r')
 
   #setup kfolds
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
 
-  # get subset
+  # get subset 
+  # copy only data subsets into memory 
+  # uses 'views' for efficient memory usage
+  # https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.indexing.html
   print('get subset...')
-  trainingsubsetmasked    =  numpydatabase[numpydatabase['axialliverbounds'] == True ]
-  dbtrainindex = np.isin(trainingsubsetmasked['dataid'], train_index )
-  trainingsubset = trainingsubsetmasked[dbtrainindex  == True ]
+  axialbounds = numpydatabase['axialliverbounds'].copy()
+  dataidarray = numpydatabase['dataid'].copy()
+  dbtrainindex= np.isin(dataidarray, train_index )
+  subsetidx   = np.all( np.vstack((axialbounds ,dbtrainindex)) , axis=0 )
+  # error check
+  if  np.sum(subsetidx   ) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
+    raise("data error")
+  print('copy memory map from disk to RAM...')
+  trainingsubset = numpydatabase[subsetidx   ].copy()
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
@@ -236,9 +244,11 @@ elif (options.trainmodel ):
   
 
   # load training data
+  print('downsample and training/validation split...')
   import skimage.transform
   x_train=skimage.transform.resize(trainingsubset['imagedata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(IMG_DTYPE)
   y_train=skimage.transform.resize(trainingsubset['truthdata'],(totnslice, options.trainingresample,options.trainingresample),order=0,preserve_range=True).astype(SEG_DTYPE)
+  del trainingsubset
   studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
   slicesplit =  int(studydict[options.trainingid] * totnslice )
   TRAINING_SLICES      = slice(0,slicesplit)
