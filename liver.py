@@ -188,6 +188,7 @@ elif (options.trainmodel ):
 
   # load database
   if 'numpydatabase' not in dir():
+      print('loading db...')
       numpydatabase = np.load(options.dbfile.replace('.csv','.npy'))
 
   #setup kfolds
