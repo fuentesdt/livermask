@@ -1,4 +1,13 @@
 import numpy as np
+import horovod.keras as hvd
+
+# Horovod: implementation followed from:
+#   https://github.com/NERSC/hep_cnn_benchmark/blob/master/scripts/hep_classifier_tf_train_horovod.py
+#   https://github.com/uber/horovod/blob/master/examples/keras_mnist.py
+#   https://github.com/uber/horovod/blob/master/examples/keras_mnist_advanced.py
+#   https://ai.intel.com/using-intel-xeon-for-multi-node-scaling-of-tensorflow-with-horovod/?utm_campaign=2018-Q2-US-AI-Always-On-IntelAI_TW&utm_source=twitter&utm_medium=social&utm_content=138_FI_Static_Embd_Cnt&utm_keyword=NA&cid=2018-Q2-US-AI-Always-On-IntelAI_TW
+# Initialize Horovod
+hvd.init()
 
 IMG_DTYPE = np.float16
 SEG_DTYPE = np.uint8
@@ -206,9 +215,10 @@ elif (options.trainmodel ):
   dataidarray = numpydatabase['dataid']
   dbtrainindex= np.isin(dataidarray, train_index )
   subsetidx   = np.all( np.vstack((axialbounds ,dbtrainindex)) , axis=0 )
+
   # error check
-  if  np.sum(subsetidx   ) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
-    raise("data error")
+#  if np.sum(subsetidx   ) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
+#    raise("data error")
   print('copy memory map from disk to RAM...')
   #trainingsubset = numpydatabase[subsetidx   ].copy()
   trainingsubset = numpydatabase[subsetidx   ]
@@ -439,6 +449,16 @@ elif (options.trainmodel ):
   
   ### Train model with Dice loss
   import keras.backend as K
+  import tensorflow as tf
+
+  # Horovod: pin node to be used to process local rank (one node per process)
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  config.gpu_options.visible_device_list = str(hvd.local_rank())
+  print("HOROVOD: Using Horovod with local rank = " + 
+        "{0} and size = {1}".format(hvd.local_rank(), hvd.size()))
+  K.set_session(tf.Session(config = config))
+
   def dice_coef(y_true, y_pred, smooth=1):
       """
       Dice = (2*|X & Y|)/ (|X|+ |Y|)
@@ -526,6 +546,7 @@ elif (options.trainmodel ):
 
   # callback to save best model 
   from keras.callbacks import Callback as CallbackBase
+  from keras.optimizers import Adadelta
   class MyHistories(CallbackBase):
       def on_train_begin(self, logs={}):
           self.min_valloss = np.inf
@@ -544,7 +565,7 @@ elif (options.trainmodel ):
              model_json = model.to_json()
              with open("%s/tumormodelunet.json" % logfileoutputdir , "w") as json_file:
                  json_file.write(model_json)
-             # serialize weights to HDF5
+             # serialize weights to HDF5#
              model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
              print("Saved model to disk - val_loss", self.min_valloss  )
           return
@@ -561,6 +582,12 @@ elif (options.trainmodel ):
   model = modeldict[options.trainingmodel] 
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss}
+
+  # Horovod: adjust learning rate based on number of nodes
+  opt = Adadelta(lr = 1.0 * hvd.size())
+  opt = hvd.DistributedOptimizer(opt)
+
+
   # FIXME - dice applied to each class separately, and weight each class
   # 
   # ojective function is summed
@@ -568,15 +595,60 @@ elif (options.trainmodel ):
   #             function:_weighted_masked_objective
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
-  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=options.trainingsolver)
+
+  # Original complie
+  # model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=options.trainingsolver)
+
+  # Hovorod compile
+  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=opt)
+
+  callbacks = [tensorboard,
+
+               # Callback save disabled because of some issues with h5py not recognizing files
+  #             callbacksave,
+               # Horovod: broadcast initial variable states from rank 0 to all other
+               # processes. Necessary to ensure consistent intialization of all workers
+               # when training is started with random weights or restored from checkpoint
+               hvd.callbacks.BroadcastGlobalVariablesCallback(0),
+               # Horovod: average metrics among all workers at end of epoch
+               hvd.callbacks.MetricAverageCallback(),
+               # Horovod: use learning rate = 1.0 for first 5 epochs then scale 
+               # learning rate with hvd.size() after
+               hvd.callbacks.LearningRateWarmupCallback(warmup_epochs = 5, verbose = 1)]
+
+  # Horovod: save checkpoint only on worker 0 to prevent other workers from corrupting them
+  # saves checkpoint from worker 1 every epoch
+ # if hvd.rank() == 0:
+ #   import keras
+ #   callbacks.append(keras.callbacks.ModelCheckpoint('./checkpoint-{epoch}.h5'))
+
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
-  history = model.fit(x_train[TRAINING_SLICES ,:,:,np.newaxis],
-                      y_train_one_hot[TRAINING_SLICES ],
+  
+  from keras.preprocessing.image import ImageDataGenerator
+  # Data generator for training. Allows different workers to request batches without interfering with other workers
+  train_gen = ImageDataGenerator()
+  steps_per_epoch = (len(x_train[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
+
+  # fit_generator must be used instead of model.fit for distributed training
+  history = model.fit_generator(
+                      train_gen.flow(x_train[TRAINING_SLICES ,:,:,np.newaxis],
+                                     y_train_one_hot[TRAINING_SLICES ], 
+                                     batch_size = options.trainingbatch),
+                      steps_per_epoch=steps_per_epoch,
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
-                      callbacks = [tensorboard,callbacksave],
-                      batch_size=options.trainingbatch, epochs=1000)
+                      callbacks = callbacks,  # Note callbacksave is disabled
+                      verbose = 1,
+                      epochs=1000)
+
+  #history = model.fit(x_train[TRAINING_SLICES ,:,:,np.newaxis],
+  #                    y_train_one_hot[TRAINING_SLICES ],
+  #                    validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
+  #                    callbacks = callbacks,
+  #                    workers = 2, 
+  #                    batch_size=options.trainingbatch // hvd.size(), 
+   #                   epochs=1000)
                       #batch_size=10, epochs=300
   
   # ### Assignment: Extend the plot function to handle multiple classes.

@@ -36,10 +36,10 @@
 
 #SBATCH -J modelbuild           # Job name
 #SBATCH -o modelbuild.o%j       # Name of  output file
-#SBATCH -e modelbuild.e%j       # std err output file
+#SBATCH -e modelbuild.e%j       # name of std err file
 #SBATCH -p normal          # Queue (partition) name
-#SBATCH -N 4               # Total # of nodes 
-#SBATCH -n 16               # Total # of mpi tasks
+#SBATCH -N 1               # Total # of nodes 
+#SBATCH -n 1               # Total # of mpi tasks
 #SBATCH -t 48:00:00         # Run time (hh:mm:ss)
 #SBATCH --mail-user=jgpauloski1@mdanderson.org
 #SBATCH --mail-type=end    # Send email at begin and end of job
@@ -61,5 +61,7 @@ export KMP_BLOCKTIME=0
 export KMP_SETTINGS=1
 export KMP_AFFINITY=granularity=fine,verbose,compact,1,0
 
+python3 ./liver.py --builddb --dbfile=/work/05714/jgpaul/stampede2/livermask/trainingdata.csv --rootlocation=/scratch/05714/jgpaul/LiTS2017/LITS
+
 # Launch MPI code... 
-mpiexec.hydra -l -ppn 4 -n 4 taskset -c 0-64,68-132,136-200,204-268  python3 ./liver.py --trainmodel --idfold=0 --kfolds=5 --trainingbatch=30  --dbfile=/scratch/00131/fuentes/stampede2/github/livermask/trainingdata.csv
+#mpiexec.hydra -l -ppn 4 -n 4 taskset -c 0-64,68-132,136-200,204-268  python3 ./liver.py --trainmodel --idfold=0 --kfolds=5 --trainingbatch=30  --dbfile=/work/05714/jgpaul/stampede2/livermask/trainingdata.csv
