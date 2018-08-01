@@ -584,6 +584,7 @@ elif (options.trainmodel ):
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss}
 
   # Horovod: adjust learning rate based on number of nodes
+  # Overrides options.trainingsolver!!!!
   opt = Adadelta(lr = 1.0 * hvd.size())
   opt = hvd.DistributedOptimizer(opt)
 
@@ -596,15 +597,14 @@ elif (options.trainmodel ):
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
 
-  # Original complie
+  # Original compile
   # model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=options.trainingsolver)
 
-  # Hovorod compile
+  # Hovorod: compile with modified optimizer
   model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=opt)
 
-  callbacks = [# Callback save disabled because of some issues with h5py not recognizing files
-  #             callbacksave,
-               # Horovod: broadcast initial variable states from rank 0 to all other
+  # Horovod: Callbacks for all nodes
+  callbacks = [# Horovod: broadcast initial variable states from rank 0 to all other
                # processes. Necessary to ensure consistent intialization of all workers
                # when training is started with random weights or restored from checkpoint
                hvd.callbacks.BroadcastGlobalVariablesCallback(0),
@@ -614,12 +614,13 @@ elif (options.trainmodel ):
                # learning rate with hvd.size() after
                hvd.callbacks.LearningRateWarmupCallback(warmup_epochs = 5, verbose = 1)]
 
-  # Horovod: save checkpoint only on worker 0 to prevent other workers from corrupting them
-  # saves checkpoint from worker 1 every epoch
-  # Only log to tensorboard on master node
+  # Horovod: Add callbacks specifically for master node
+  #   callbacksave had some issues with not recognizing h5py files so it was disabled for testing
+  #   only log to tensorboard on master node (otherwise tensorboard plots get confused)
   if hvd.rank() == 0:
     import keras
     #callbacks.append(keras.callbacks.ModelCheckpoint('./checkpoint-{epoch}.h5'))
+    #callbacks.append(callbacksave)
     callbacks.append(tensorboard)
 
   print("Model parameters: {0:,}".format(model.count_params()))
@@ -639,18 +640,18 @@ elif (options.trainmodel ):
                       steps_per_epoch=steps_per_epoch,
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
                       callbacks = callbacks,  # Note callbacksave is disabled
-                      workers = hvd.size(),
-                      verbose = 1,
+                      #workers = 1,           # More testing needs to be done to see how workers/use_multiprocessing impact horovod
+                      #use_multiprocessing = False,
+                      verbose = 1 if hvd.rank() == 0 else 0,
                       epochs=1000)
 
+  # Previous model.fit before horovod implementation
   #history = model.fit(x_train[TRAINING_SLICES ,:,:,np.newaxis],
   #                    y_train_one_hot[TRAINING_SLICES ],
   #                    validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
   #                    callbacks = callbacks,
-  #                    workers = 2, 
-  #                    batch_size=options.trainingbatch // hvd.size(), 
-   #                   epochs=1000)
-                      #batch_size=10, epochs=300
+  #                    batch_size=options.trainingbatch,
+  #                    epochs=1000)
   
   # ### Assignment: Extend the plot function to handle multiple classes.
   # Then, activate the visualization callback in the training again. Try to find a slice with more than one output class to see the success.
