@@ -602,9 +602,7 @@ elif (options.trainmodel ):
   # Hovorod compile
   model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=opt)
 
-  callbacks = [tensorboard,
-
-               # Callback save disabled because of some issues with h5py not recognizing files
+  callbacks = [# Callback save disabled because of some issues with h5py not recognizing files
   #             callbacksave,
                # Horovod: broadcast initial variable states from rank 0 to all other
                # processes. Necessary to ensure consistent intialization of all workers
@@ -618,9 +616,11 @@ elif (options.trainmodel ):
 
   # Horovod: save checkpoint only on worker 0 to prevent other workers from corrupting them
   # saves checkpoint from worker 1 every epoch
- # if hvd.rank() == 0:
- #   import keras
- #   callbacks.append(keras.callbacks.ModelCheckpoint('./checkpoint-{epoch}.h5'))
+  # Only log to tensorboard on master node
+  if hvd.rank() == 0:
+    import keras
+    #callbacks.append(keras.callbacks.ModelCheckpoint('./checkpoint-{epoch}.h5'))
+    callbacks.append(tensorboard)
 
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
@@ -630,15 +630,16 @@ elif (options.trainmodel ):
   # Data generator for training. Allows different workers to request batches without interfering with other workers
   train_gen = ImageDataGenerator()
   steps_per_epoch = (len(x_train[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
+  train_iter = train_gen.flow(x_train[TRAINING_SLICES ,:,:,np.newaxis],
+                              y_train_one_hot[TRAINING_SLICES ], 
+                              batch_size = options.trainingbatch)
 
   # fit_generator must be used instead of model.fit for distributed training
-  history = model.fit_generator(
-                      train_gen.flow(x_train[TRAINING_SLICES ,:,:,np.newaxis],
-                                     y_train_one_hot[TRAINING_SLICES ], 
-                                     batch_size = options.trainingbatch),
+  history = model.fit_generator(train_iter,
                       steps_per_epoch=steps_per_epoch,
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
                       callbacks = callbacks,  # Note callbacksave is disabled
+                      workers = hvd.size(),
                       verbose = 1,
                       epochs=1000)
 
