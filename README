@@ -1,3 +1,11 @@
+Horovod Usage
+=============
+
+Horovod automatically find available workers and allocates batches to workers accordingly.
+If on TACC, use `ibrun python3 ./liver.py [options]` to use all currently allocated nodes.
+
+
+
 Usage
 =====
 python liver.py --builddb
