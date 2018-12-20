@@ -2,7 +2,7 @@ import numpy as np
 
 # raw dicom data is usually short int (2bytes) datatype
 # labels are usually uchar (1byte)
-IMG_DTYPE = np.float16
+IMG_DTYPE = np.int16
 SEG_DTYPE = np.uint8
 
 # setup command line parser to control execution
@@ -75,6 +75,7 @@ parser.add_option( "--rootlocation",
 
 
 _globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
+print('datbase file: %s ' % _globalnpfile )
 # build data base from CSV file
 def GetDataDictionary():
   import csv
@@ -120,7 +121,7 @@ if (options.builddb):
 
   # create  custom data frame database type
   globalexpectedpixel=512
-  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)float16' %(options.trainingresample,options.trainingresample)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
+  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
 
   # initialize empty dataframe
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
@@ -581,7 +582,7 @@ elif (options.trainmodel ):
                       y_train_one_hot[TRAINING_SLICES ],
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
                       callbacks = [tensorboard,callbacksave],
-                      batch_size=options.trainingbatch, epochs=1000)
+                      batch_size=options.trainingbatch, epochs=10)
                       #batch_size=10, epochs=300
   
   # ### Assignment: Extend the plot function to handle multiple classes.
