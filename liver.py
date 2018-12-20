@@ -74,8 +74,12 @@ parser.add_option( "--rootlocation",
 (options, args) = parser.parse_args()
 
 
+# FIXME:  @jonasactor - is there a better software/programming practice to keep track  of the global variables?
 _globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
-print('datbase file: %s ' % _globalnpfile )
+_globalexpectedpixel=512
+print('database file: %s ' % _globalnpfile )
+
+
 # build data base from CSV file
 def GetDataDictionary():
   import csv
@@ -120,7 +124,6 @@ if (options.builddb):
   import skimage.transform
 
   # create  custom data frame database type
-  globalexpectedpixel=512
   mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
 
   # initialize empty dataframe
@@ -139,7 +142,7 @@ if (options.builddb):
       imagedata = nib.load(imagelocation )
       numpyimage= imagedata.get_data().astype(IMG_DTYPE )
       # error check
-      assert numpyimage.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
+      assert numpyimage.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
       nslice = numpyimage.shape[2]
       resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
 
@@ -147,7 +150,7 @@ if (options.builddb):
       truthdata = nib.load(truthlocation )
       numpytruth= truthdata.get_data().astype(SEG_DTYPE)
       # error check
-      assert numpytruth.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
+      assert numpytruth.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
       assert nslice  == numpytruth.shape[2]
       restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
 
@@ -1140,21 +1143,22 @@ elif (options.predictmodel != None and options.predictimage != None and options.
   imagepredict = nib.load(options.predictimage)
   numpypredict= imagepredict.get_data().astype(IMG_DTYPE )
   # error check
-  assert numpypredict.shape[0:2] == (globalexpectedpixel,globalexpectedpixel)
+  assert numpypredict.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
   nslice = numpypredict.shape[2]
   resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True).astype(IMG_DTYPE).transpose(2,0,1)
 
-  # predict slice by slice
-  numlabel = 4
+  # FIXME: @jonasactor - the numlabel will change depending on the training data... can you make this more robust and the number of labels from the model? 
+  numlabel = 3
   segmentation  = np.zeros( (options.trainingresample,options.trainingresample,numlabel ,nslice )  , dtype=IMG_DTYPE )
-  segmentexpect = np.zeros( (globalexpectedpixel,globalexpectedpixel,nslice, numlabel)  , dtype=IMG_DTYPE )
+  segmentexpect = np.zeros( (_globalexpectedpixel,_globalexpectedpixel,nslice, numlabel)  , dtype=IMG_DTYPE )
+  # predict slice by slice
   for iii in range(nslice):
     print ( "%d  " % iii ,end='',flush=True) 
     # NN expect liver in top left
     # evaluate loaded model on test data
     segmentation[...,iii]  = loaded_model.predict(resizepredict[iii:iii+1,:,:,np.newaxis] )
     for jjj in range(numlabel):
-      segmentexpect[:,:,iii,jjj] = skimage.transform.resize(segmentation[:,:,jjj,iii],(globalexpectedpixel,globalexpectedpixel),order=0,preserve_range=True).astype(IMG_DTYPE)
+      segmentexpect[:,:,iii,jjj] = skimage.transform.resize(segmentation[:,:,jjj,iii],(_globalexpectedpixel,_globalexpectedpixel),order=0,preserve_range=True).astype(IMG_DTYPE)
 
   # save segmentation at original resolution
   print ( "writing %s  " % options.segmentation) 
