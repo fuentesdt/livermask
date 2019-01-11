@@ -69,8 +69,11 @@ parser.add_option( "--idfold",
                   type="int", dest="idfold", default=0,
                   help="setup info", metavar="int")
 parser.add_option( "--rootlocation",
-                  action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS',
+                  action="store", dest="rootlocation", default='/rsrch1/ip/jacctor/LiTS/LiTS',
                   help="setup info", metavar="string")
+parser.add_option("--numepochs",
+                  type="int", dest="numepochs", default=10,
+                  help="number of epochs for training", metavar="int")
 (options, args) = parser.parse_args()
 
 
@@ -585,7 +588,7 @@ elif (options.trainmodel ):
                       y_train_one_hot[TRAINING_SLICES ],
                       validation_data=(x_train[VALIDATION_SLICES,:,:,np.newaxis],y_train_one_hot[VALIDATION_SLICES]),
                       callbacks = [tensorboard,callbacksave],
-                      batch_size=options.trainingbatch, epochs=10)
+                      batch_size=options.trainingbatch, epochs=options.numepochs)
                       #batch_size=10, epochs=300
   
   # ### Assignment: Extend the plot function to handle multiple classes.
@@ -1065,7 +1068,7 @@ elif (options.trainhvd ):
                       #workers = 1,           # More testing needs to be done to see how workers/use_multiprocessing impact horovod
                       #use_multiprocessing = False,
                       verbose = 1 if hvd.rank() == 0 else 0,
-                      epochs=1000)
+                      epochs=options.numepochs)
 
   # Previous model.fit before horovod implementation
   #history = model.fit(x_train[TRAINING_SLICES ,:,:,np.newaxis],
