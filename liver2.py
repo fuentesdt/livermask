@@ -185,7 +185,7 @@ if (options.builddb):
 # build NN model from anonymized data
 ##########################
 elif (options.trainmodel ):
-    if (options.trainhvd ):
+  if (options.trainhvd ):
       import horovod.keras as hvd
       hvd.init()
 
@@ -202,13 +202,18 @@ elif (options.trainmodel ):
   axialbounds = numpydatabase['axialliverbounds']
   dataidarray = numpydatabase['dataid']
   dbtrainindex= np.isin(dataidarray, train_index )
-  subsetidx   = np.all( np.vstack((axialbounds ,dbtrainindex)) , axis=0 )
-  # error check
+  dbtestindex = np.isin(dataidarray, test_index  )
+  subsetidx_train  = np.all( np.vstack((axialbounds , dbtrainindex)) , axis=0 )
+  subsetidx_test   = np.all( np.vstack((axialbounds , dbtestindex )) , axis=0 )
+  print(np.sum(subsetidx_train))
+  print(np.sum(subsetidx_test))
+  print(np.sum(axialbounds), np.sum(dbtrainindex), "\tmin=\t", min(np.sum(axialbounds),np.sum(dbtrainindex)))
+# error check
   if not (options.trainhvd):
-      if  np.sum(subsetidx   ) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
+      if  np.sum(subsetidx_train   ) + np.sum(subsetidx_test) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
         raise("data error")
   print('copy memory map from disk to RAM...')
-  trainingsubset = numpydatabase[subsetidx   ]
+  trainingsubset = numpydatabase[subsetidx_train   ]
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0)
@@ -216,7 +221,7 @@ elif (options.trainmodel ):
 
   # subset within bounding box that has liver
   totnslice = len(trainingsubset)
-  print("nslice ",totnslice )
+  print("nslice train ",totnslice )
 
   # load training data as views
   x_train=trainingsubset['imagedata']
@@ -402,7 +407,9 @@ elif (options.trainmodel ):
   y_train_one_hot[:,:,:,1]=liver
 
   # output location
-  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+  #  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+
+  logfileoutputdir= './modelout/validation/run3/%03d/%03d' % (options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -535,12 +542,13 @@ elif (options.setuptestset):
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
       for idtest in test_set:
-         uidoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+         # uidoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+         uidoutputdir= './modelout/validation/run3/%03d/%03d' % (options.kfolds,iii)
          # write target
          segmaketarget = '%s/label-%04d.nii.gz' % (uidoutputdir,idtest)
          maketargetlist.append(segmaketarget )
          imageprereq = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
-         cvtestcmd = "python ./liver.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s"  % (imageprereq ,uidoutputdir,segmaketarget )
+         cvtestcmd = "python3 ./liver2.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s"  % (imageprereq ,uidoutputdir,segmaketarget )
          fileHandle.write('%s: %s\n' % (segmaketarget ,imageprereq ) )
          fileHandle.write('\t%s\n' % cvtestcmd)
 
