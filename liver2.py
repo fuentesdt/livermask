@@ -62,6 +62,9 @@ parser.add_option( "--rootlocation",
 parser.add_option("--numepochs",
                   type="int", dest="numepochs", default=10,
                   help="number of epochs for training", metavar="int")
+parser.add_option("--outdir",
+                  action="store", dest="outdir", default='./',
+                  help="directory for output", metavar="string")
 (options, args) = parser.parse_args()
 
 
@@ -103,6 +106,9 @@ def GetSetupKfolds(numfolds,idfold):
   else:
      train_index = np.array(dataidsfull )
      test_index  = None
+  print(numfolds, idfold)
+  print("train_index:\t", train_index)
+  print("test_index:\t", test_index)
   return (train_index,test_index)
 
 ##########################
@@ -205,9 +211,6 @@ elif (options.trainmodel ):
   dbtestindex = np.isin(dataidarray, test_index  )
   subsetidx_train  = np.all( np.vstack((axialbounds , dbtrainindex)) , axis=0 )
   subsetidx_test   = np.all( np.vstack((axialbounds , dbtestindex )) , axis=0 )
-  print(np.sum(subsetidx_train))
-  print(np.sum(subsetidx_test))
-  print(np.sum(axialbounds), np.sum(dbtrainindex), "\tmin=\t", min(np.sum(axialbounds),np.sum(dbtrainindex)))
 # error check
   if not (options.trainhvd):
       if  np.sum(subsetidx_train   ) + np.sum(subsetidx_test) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
@@ -408,8 +411,7 @@ elif (options.trainmodel ):
 
   # output location
   #  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
-
-  logfileoutputdir= './modelout/validation/run3/%03d/%03d' % (options.kfolds,options.idfold)
+  logfileoutputdir= '%s/%03d/%03d' % (options.outdir, options.kfolds, options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -543,12 +545,11 @@ elif (options.setuptestset):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
       for idtest in test_set:
          # uidoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
-         uidoutputdir= './modelout/validation/run3/%03d/%03d' % (options.kfolds,iii)
-         # write target
+         uidoutputdir= '%s/%03d/%03d' % (options.outdir, options.kfolds, iii)
          segmaketarget = '%s/label-%04d.nii.gz' % (uidoutputdir,idtest)
          maketargetlist.append(segmaketarget )
          imageprereq = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
-         cvtestcmd = "python3 ./liver2.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s"  % (imageprereq ,uidoutputdir,segmaketarget )
+         cvtestcmd = "python3 ./liver2.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s --dbfile=%s"  % (imageprereq ,uidoutputdir,segmaketarget ,options.dbfile)
          fileHandle.write('%s: %s\n' % (segmaketarget ,imageprereq ) )
          fileHandle.write('\t%s\n' % cvtestcmd)
 
@@ -584,7 +585,7 @@ elif (options.predictmodel != None and options.predictimage != None and options.
   # error check
   assert numpypredict.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
   nslice = numpypredict.shape[2]
-  resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True).astype(IMG_DTYPE).transpose(2,0,1)
+  resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,0,1)
 
   # FIXME: @jonasactor - the numlabel will change depending on the training data... can you make this more robust and the number of labels from the model?
   numlabel = 3
@@ -597,7 +598,7 @@ elif (options.predictmodel != None and options.predictimage != None and options.
     # evaluate loaded model on test data
     segmentation[...,iii]  = loaded_model.predict(resizepredict[iii:iii+1,:,:,np.newaxis] )
     for jjj in range(numlabel):
-      segmentexpect[:,:,iii,jjj] = skimage.transform.resize(segmentation[:,:,jjj,iii],(_globalexpectedpixel,_globalexpectedpixel),order=0,preserve_range=True).astype(IMG_DTYPE)
+      segmentexpect[:,:,iii,jjj] = skimage.transform.resize(segmentation[:,:,jjj,iii],(_globalexpectedpixel,_globalexpectedpixel),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE)
 
   # save segmentation at original resolution
   print ( "writing %s  " % options.segmentation)
