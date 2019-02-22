@@ -17,7 +17,7 @@ regex3 = re.compile(r'=')
 
 imgname   = "/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/TrainingBatch2/volume-30.nii"
 truthname = "/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/TrainingBatch2/segmentation-30.nii"
-modelname = "tblog/dscimg/full/adadelta/256/run_a/004/005/000/tumormodelunet.json"
+modelname = "tblog/dscimg/full/adadelta/256/run_a/004/001/000/tumormodelunet.json"
 segname   = "out.nii.gz"
 lblname   = "mylabel.nii.gz"
 
