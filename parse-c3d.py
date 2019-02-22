@@ -15,18 +15,18 @@ regex1 = re.compile(r', |: |\s')
 regex2 = re.compile(r': |; ')
 regex3 = re.compile(r'=')
 
-imgname   = "/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/TrainingBatch2/volume-30.nii"
-truthname = "/rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/TrainingBatch2/segmentation-30.nii"
-modelname = "tblog/dscimg/full/adadelta/256/run_a/004/005/000/tumormodelunet.json"
+imgname   = "/rsrch1/ip/jacctor/LiTS/LiTS/TrainingBatch2/volume-30.nii"
+truthname = "/rsrch1/ip/jacctor/LiTS/LiTS/TrainingBatch2/segmentation-30.nii"
+modelname = "tblog/dscimg/full/adadelta/256/run_a/004/001/000/tumormodelunet.json"
 segname   = "out.nii.gz"
 lblname   = "mylabel.nii.gz"
 
-# command0 = ["python3", "liver.py", "--predictimage="+imgname, "--predictmodel="+modelname, "--segmentation="+segname]
-# command1 = ["c3d", segname.replace(".nii.gz", "0.nii.gz"), "-info"]
-# command2 = ["c3d", segname.replace(".nii.gz", "?.nii.gz"), "-vote", "-type", "uchar", "-o", lblname]
-# command3 = ["c3d", "-verbose", lblname, truthname, "-overlap", "1", "-overlap", "2", "-overlap", "0"]
-command1 = ["cat", "sample_info.txt"]
-command3 = ["cat", "sample_out.txt"]
+command0 = ["python3", "liver.py", "--predictimage="+imgname, "--predictmodel="+modelname, "--segmentation="+segname]
+command1 = ["c3d", segname.replace(".nii.gz", "0.nii.gz"), "-info"]
+command2 = ["c3d", segname.replace(".nii.gz", "?.nii.gz"), "-vote", "-type", "uchar", "-o", lblname]
+command3 = ["c3d", "-verbose", lblname, truthname, "-overlap", "1", "-overlap", "2", "-overlap", "0"]
+# command1 = ["cat", "sample_info.txt"]
+# command3 = ["cat", "sample_out.txt"]
 
 writechar = 'a' if os.path.isfile('stats.csv') else 'w+'
 with open(r'stats.csv', writechar) as f:
@@ -34,9 +34,9 @@ with open(r'stats.csv', writechar) as f:
     if writechar == 'w+':
         writer.writerow(["imgname", "lblname", "truthname", "modelname", "dim", "bb", "vox", "range", "orient", "label", "matching_vox_img1", "matching_vox_img2", "size_overlap", "dice", "jaccard"])
 
-    # result0 = sbp.run(command0)
+    result0 = sbp.run(command0)
     result1 = sbp.run(command1, stdout=sbp.PIPE, stderr=sbp.PIPE, universal_newlines=True)
-    # result2 = sbp.run(command2)
+    result2 = sbp.run(command2)
     result3 = sbp.run(command3, stdout=sbp.PIPE, stderr=sbp.PIPE, universal_newlines=True)
 
     lines1 = regex0.split(result1.stdout)

@@ -1,19 +1,27 @@
+print('importing csv')
 import csv
-import nibabel as nib
+# import nibabel as nib
+print('importing numpy')
 import numpy as np
+print('importing scipy')
 import scipy as sp
+from scipy import sparse
 # from scipy import ndimage
-import skimage.transform
-from matplotlib import pyplot as plt
+# import skimage.transform
+print('importing matplotlib')
+# from matplotlib import pyplot as plt
+import matplotlib as mptlb
+mptlb.use('TkAgg')
+import matplotlib.pyplot as plt
 
-from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D, Activation
-from keras.models import Model, Sequential
-from keras.layers import UpSampling2D
-from keras.layers import BatchNormalization,SpatialDropout2D
-from keras.layers.advanced_activations import LeakyReLU, PReLU
-import keras.backend as K
+# from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D, Activation
+# from keras.models import Model, Sequential
+# from keras.layers import UpSampling2D
+# from keras.layers import BatchNormalization,SpatialDropout2D
+# from keras.layers.advanced_activations import LeakyReLU, PReLU
+# import keras.backend as K
 
-
+print('Beginning Code')
 nx = 50
 ny = 32
 n = (nx+1)*(ny+1)
@@ -28,7 +36,7 @@ T = 1.0
 dt = min(dx/16.0, dy/16.0) # CFL condition
 
 def fx_atom(x,y,t):
-    return 0.0
+    return x + y
 
 def fy_atom(x,y,t):
     return 2.0

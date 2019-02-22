@@ -248,8 +248,7 @@ elif (options.trainmodel ):
   from keras.layers.advanced_activations import LeakyReLU, PReLU
   # import keras.backend as K
 
-
-
+  
   def addConvBNSequential(model, filters=32, kernel_size=(3,3), batch_norm=True, activation='prelu', padding='same', kernel_regularizer=None,dropout=0.):
       if batch_norm:
           model = BatchNormalization()(model)
@@ -263,6 +262,28 @@ elif (options.trainmodel ):
           model = LeakyReLU()(model)
       else:
           model = Conv2D(filters=filters, kernel_size=kernel_size, padding=padding, activation=activation, kernel_regularizer=kernel_regularizer)(model)
+      return model
+
+  from keras.layers.merge import add
+  def resnet_layer(model, filters=32, kernel_size=(3,3), batch_norm=True, activation='prelu', padding='same', kernel_regularizer=None, dropout=0.):
+      x0 = addConvBNSequential(model, filters=filters, kernel_size=kernel_size, activation=activation, padding=padding, kernel_regularizer=kernel_regularizer, dropout=droupout)
+      model = add([model, x0])
+      return model
+
+  from keras.layers import Input, concatenate
+  from keras.layers.merge import add
+  def get_batchnorm_resnet(_filters=32, _filters_add=0, _kernel_size=(3,3), _padding='same', _activation='relu', _kernel_regularizer=None, _final_layer_nonlinearity='sigmoid', _batch_norm=True, _num_classes=1):
+      crop_size = options.training.resample
+      if _padding == 'valid':
+          input_layer = Input(shape=(crop_size+40,crop_size+40,1))
+      elif _padding == 'same':
+          input_layer = Input(shape=(crop_size,crop_size,1))
+
+      x0 = addConvBNSequential(input_layer, filters=_filters, kernel_size=kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x0 = add([input_layer, x0])
+
+      output_layer = Conv2D(_num_classes, kernel_size=(1,1), activation=_final_layer_nonlinearity)(x0)
+      model = Model(inputs=input_layer, outputs=output_layer)
       return model
 
 
