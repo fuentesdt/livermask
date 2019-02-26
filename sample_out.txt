@@ -1,0 +1,23 @@
+Reading #1 from mylabel.nii.gz
+Reading #2 from /rsrch1/ip/dtfuentes/SegmentationTrainingData/LiTS2017/LITS/TrainingBatch2/segmentation-30.nii
+Computing overlap #1 and #2
+OVL: 1, 0, 2360827, 0, 0, 0
+  Matching voxels in first image:  0
+  Matching voxels in second image: 2360827
+  Size of overlap region:          0
+  Dice similarity coefficient:     0
+  Intersection / ratio:            0
+Computing overlap #1 and #2
+OVL: 2, 28888, 14252, 0, 0, 0
+  Matching voxels in first image:  28888
+  Matching voxels in second image: 14252
+  Size of overlap region:          0
+  Dice similarity coefficient:     0
+  Intersection / ratio:            0
+Computing overlap #1 and #2
+OVL: 0, 52399912, 50053721, 50053721, 0.9771, 0.955225
+  Matching voxels in first image:  52399912
+  Matching voxels in second image: 50053721
+  Size of overlap region:          50053721
+  Dice similarity coefficient:     0.9771
+  Intersection / ratio:            0.955225
