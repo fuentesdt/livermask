@@ -1,0 +1,61 @@
+Horovod Usage
+=============
+
+Horovod automatically find available workers and allocates batches to workers accordingly.
+If on TACC, use `ibrun python3 ./liver.py [options]` to use all currently allocated nodes.
+
+
+
+Usage
+=====
+python liver.py --builddb
+python liver.py --trainmodel --idfold=0 --kfolds=1
+python liver.py --trainmodel --idfold=0 --kfolds=5
+python liver.py --trainmodel --idfold=1 --kfolds=5
+python liver.py --trainmodel --idfold=2 --kfolds=5
+python liver.py --trainmodel --idfold=3 --kfolds=5
+python liver.py --trainmodel --idfold=4 --kfolds=5
+python liver.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
+
+Unet code adapted from SPIE Tutorial
+====================================
+https://spie.org/education/courses/coursedetail/SC1235?f=InCompany
+
+Training data from MICCAI Challenge
+====================================
+https://competitions.codalab.org/competitions/17094
+
+Run on KNL at TACC
+====================================
+https://arxiv.org/abs/1709.05011
+
+
+Example Performance, 256x256 input images
+==================
+batch size = 30, tensor input (30,256,256,3) on KNL takes ~2hr  per epoch on training set of 17277
+
+[0] 17277/17277 [==============================] - 7496s 434ms/step - loss: -0.6887 - dice_metric_zero: 0.9951 - dice_metric_one: 0.9046 - dice_metric_two: 0.1663 - val_loss: -0.7076 - val_dice_metric_zero: 0.9965 - val_dice_metric_one: 0.9274 - val_dice_metric_two: 0.1989
+
+
+Example Performance, 128x128 input images
+==================
+batch size = 10, tensor input (10,128,128,4) on Titan card (2400 cuda cores, 6GB RAM) takes 47s per epoch on training set of 1700 
+
+1700/1700 [==============================] - 47s 27ms/step - loss: -0.6923 - val_loss: -0.6116
+
+
+batch size = 200, tensor input (200,128,128,4) on KNL takes 102s per epoch on same training set of 1700
+
+[0] 1700/1700 [==============================] - 102s 60ms/step - loss: -0.8135 - val_loss: -0.7408
+
+
+%CPU spikes up > %8000  on large batches
+
+Tasks: 2530 total,   1 running, 2529 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 20.1 us,  0.6 sy,  0.0 ni, 79.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem : 98693968 total, 52962568 free, 39903952 used,  5827448 buff/cache
+KiB Swap:        0 total,        0 free,        0 used. 51370748 avail Mem 
+
+   PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                                                                                                     
+ 62860 fuentes   20   0 53.499g 0.035t  24940 S  8384 37.6  18671:58 python3                                                                                                                                     
+
