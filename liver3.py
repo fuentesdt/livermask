@@ -248,7 +248,7 @@ elif (options.trainmodel ):
   from keras.layers.advanced_activations import LeakyReLU, PReLU
   # import keras.backend as K
 
-  
+
   def addConvBNSequential(model, filters=32, kernel_size=(3,3), batch_norm=True, activation='prelu', padding='same', kernel_regularizer=None,dropout=0.):
       if batch_norm:
           model = BatchNormalization()(model)
@@ -271,7 +271,6 @@ elif (options.trainmodel ):
       return model
 
   from keras.layers import Input, concatenate
-  from keras.layers.merge import add
   def get_batchnorm_resnet(_filters=32, _filters_add=0, _kernel_size=(3,3), _padding='same', _activation='relu', _kernel_regularizer=None, _final_layer_nonlinearity='sigmoid', _batch_norm=True, _num_classes=1):
       crop_size = options.training.resample
       if _padding == 'valid':
@@ -644,7 +643,7 @@ elif (options.predictmodel != None and options.predictimage != None and options.
   nslice = numpypredict.shape[2]
   print(nslice)
   resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
-  
+
   # FIXME: @jonasactor - the numlabel will change depending on the training data... can you make this more robust and the number of labels from the model?
   numlabel = 3
 
