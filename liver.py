@@ -610,9 +610,11 @@ elif (options.traintumor):
     validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
     validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
     validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
-    y_predicted = model.predict(x_train[VALIDATION_SLICES,:,:,np.newaxis])
+    y_predicted = model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
     y_segmentation = np.argmax(y_predicted , axis=-1)
-    validationprediction = nib.Nifti1Image(y_predicted [:,:,:] , None )
+    tumor_threshold_indices = y_predicted[:,:,:,2] > .5
+    y_segmentation[tumor_threshold_indices] = 2
+    validationprediction = nib.Nifti1Image(y_predicted, None )
     validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
     validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
     validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
