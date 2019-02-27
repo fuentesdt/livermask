@@ -1,3 +1,8 @@
+# usage:
+# 
+#   python ./binarylivermask.py --predictimage=./Ven.raw.nii.gz --segmentation=./onehot.nii.gz 
+# 
+
 import numpy as np
 
 # raw dicom data is usually short int (2bytes) datatype
@@ -20,6 +25,9 @@ parser.add_option( "--predictimage",
 parser.add_option( "--segmentation",
                   action="store", dest="segmentation", default=None,
                   help="model output ", metavar="Path")
+parser.add_option( "--trainingresample",
+                  type="int", dest="trainingresample", default=256,
+                  help="setup info", metavar="int")
 (options, args) = parser.parse_args()
 
 
@@ -55,20 +63,24 @@ if (options.predictmodel != None and options.predictimage != None and options.se
   # error check
   assert numpypredict.shape[0:2] == (_glexpx,_glexpx)
   nslice = numpypredict.shape[2]
-  print(nslice)
+  print('nslice = %d' % nslice)
   resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
   
-  # FIXME: @jonasactor - the numlabel will change depending on the training data... can you make this more robust and the number of labels from the model?
-  numlabel = 3
-
+  # apply 2d model to all slices
   segout = loaded_model.predict(resizepredict[:,:,:,np.newaxis] )
+
+  # write out each one-hot image
+  numlabel = segout.shape[-1]
   for jjj in range(numlabel):
       segout_resize = skimage.transform.resize(segout[...,jjj],(nslice,_glexpx,_glexpx),order=0,preserve_range=True,mode='constant').transpose(2,1,0)
       segout_img = nib.Nifti1Image(segout_resize, None, header=imageheader)
       segout_img.to_filename( options.segmentation.replace('.nii.gz', '-%d.nii.gz' % jjj) )
 
   # post processing
-  postprocessingcmd = 'c3d ?.nii.gz -vote -o %svote.nii.gz -binarize -o %sbinarize.nii.gz -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation)
+  postprocessingcmd = '%s %s -vote  -binarize -o %s -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation.replace('.nii.gz', '-?.nii.gz' ), options.segmentation.replace('.nii.gz', 'binarize.nii.gz' ), options.segmentation)
+
+  print(postprocessingcmd)
+  os.system (postprocessingcmd )
 
 #########################
 # print help
