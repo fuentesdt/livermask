@@ -1,9 +1,11 @@
 # usage:
 # 
 #   python ./binarylivermask.py --predictimage=./Ven.raw.nii.gz --segmentation=./onehot.nii.gz 
+#   python ./binarylivermask.py --predictimage=./Ven.raw.nii.gz --maskimage=./onehot.nii.gz --segmentation=./tumor.nii.gz  --crcmodel
 # 
 
 import numpy as np
+import os
 
 # raw dicom data is usually short int (2bytes) datatype
 # labels are usually uchar (1byte)
@@ -13,15 +15,27 @@ SEG_DTYPE = np.uint8
 # setup command line parser to control execution
 from optparse import OptionParser
 parser = OptionParser()
-parser.add_option( "--predictmodel",
-                  action="store", dest="predictmodel", default='/rsrch1/ip/dtfuentes/github/livermask/modelout/TrainingData/001/000/tumormodelunet.json',
-                  help="apply model to image", metavar="Path")
+parser.add_option( "--modelzoo",
+                  action="store", dest="modelzoo", default='/rsrch1/ip/dtfuentes/github/livermask/ModelZoo/',
+                  help="model zoo location", metavar="Path")
+parser.add_option( "--livermodel",
+                  action="store_true", dest="livermodel", default=False,
+                  help="use liver mask model", metavar="FILE")
+parser.add_option( "--crcmodel",
+                  action="store_true", dest="crcmodel", default=False,
+                  help="use crc model", metavar="FILE")
+parser.add_option( "--hccmodel",
+                  action="store_true", dest="hccmodel", default=False,
+                  help="use hcc model", metavar="FILE")
 parser.add_option( "--c3dexe",
                   action="store", dest="c3dexe", default='/usr/local/bin/c3d',
                   help="c3d executable", metavar="Path")
 parser.add_option( "--predictimage",
                   action="store", dest="predictimage", default=None,
                   help="apply model to image", metavar="Path")
+parser.add_option( "--maskimage",
+                  action="store", dest="maskimage", default=None,
+                  help="image mask", metavar="Path")
 parser.add_option( "--segmentation",
                   action="store", dest="segmentation", default=None,
                   help="model output ", metavar="Path")
@@ -30,6 +44,13 @@ parser.add_option( "--trainingresample",
                   help="setup info", metavar="int")
 (options, args) = parser.parse_args()
 
+modelpath= "%s/livermask/tumormodelunet.json" % options.modelzoo
+if (options.crcmodel):
+  modelpath= "%s/crcmets/tumormodelunet.json" % options.modelzoo
+elif (options.hccmodel):
+  modelpath= "%s/hcclesion/tumormodelunet.json" % options.modelzoo
+
+assert os.path.isfile(modelpath)
 
 # FIXME:  @jonasactor - is there a better software/programming practice to keep track  of the global variables?
 _globalexpectedpixel=512
@@ -37,7 +58,7 @@ _globalexpectedpixel=512
 ##########################
 # apply model to new data
 ##########################
-if (options.predictmodel != None and options.predictimage != None and options.segmentation != None and options.c3dexe != None ):
+if (options.predictimage != None and options.segmentation != None and options.c3dexe != None ):
   import json
   import nibabel as nib
   import skimage.transform
@@ -48,12 +69,12 @@ if (options.predictmodel != None and options.predictimage != None and options.se
   from keras.models import model_from_json
   # load json and create model
   _glexpx = _globalexpectedpixel
-  json_file = open(options.predictmodel, 'r')
+  json_file = open(modelpath, 'r')
   loaded_model_json = json_file.read()
   json_file.close()
   loaded_model = model_from_json(loaded_model_json)
   # load weights into new model
-  weightsfile= '.'.join(options.predictmodel.split('.')[0:-1]) + '.h5'
+  weightsfile= '.'.join(modelpath.split('.')[0:-1]) + '.h5'
   loaded_model.load_weights(weightsfile)
   print("Loaded model from disk")
 
@@ -66,8 +87,32 @@ if (options.predictmodel != None and options.predictimage != None and options.se
   print('nslice = %d' % nslice)
   resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
   
-  # apply 2d model to all slices
-  segout = loaded_model.predict(resizepredict[:,:,:,np.newaxis] )
+  if (options.maskimage != None):
+     imagemask = nib.load(options.maskimage)
+     maskheader  = imagemask.header
+     numpymask = imagemask.get_data().astype(IMG_DTYPE )
+     # error check
+     assert numpymask.shape[0:2] == (_glexpx,_glexpx)
+     masknslice = numpymask.shape[2]
+     assert masknslice  ==  nslice
+     resize_mask = skimage.transform.resize(numpymask,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
+
+     # bind the image and mask
+     predict_vector = np.repeat(resizepredict [:,:,:,np.newaxis],2,axis=3)
+     predict_vector [:,:,:,1]=resize_mask 
+
+     # apply 2d model to all slices
+     segout = loaded_model.predict(predict_vector  )
+
+     # post processing
+     postprocessingcmd = '%s %s %s -thresh -inf .5 1 0 -add -o %s' % (options.c3dexe,  options.maskimage, options.segmentation.replace('.nii.gz', '-2.nii.gz' ), options.segmentation)
+
+  else:
+     # apply 2d model to all slices
+     segout = loaded_model.predict(resizepredict[:,:,:,np.newaxis] )
+
+     # post processing
+     postprocessingcmd = '%s %s -vote  -binarize -o %s -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation.replace('.nii.gz', '-?.nii.gz' ), options.segmentation.replace('.nii.gz', 'binarize.nii.gz' ), options.segmentation)
 
   # write out each one-hot image
   numlabel = segout.shape[-1]
@@ -76,8 +121,6 @@ if (options.predictmodel != None and options.predictimage != None and options.se
       segout_img = nib.Nifti1Image(segout_resize, None, header=imageheader)
       segout_img.to_filename( options.segmentation.replace('.nii.gz', '-%d.nii.gz' % jjj) )
 
-  # post processing
-  postprocessingcmd = '%s %s -vote  -binarize -o %s -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation.replace('.nii.gz', '-?.nii.gz' ), options.segmentation.replace('.nii.gz', 'binarize.nii.gz' ), options.segmentation)
 
   print(postprocessingcmd)
   os.system (postprocessingcmd )

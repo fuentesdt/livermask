@@ -1,0 +1,11 @@
+
+Download pre-trained models from:
+
+https://drive.google.com/open?id=1skUZYMeRy4162WcKMpHOIWkzQUdFrN_M
+
+each directory contains the model *.json and weights *.h5 file
+
+livermask -  binary model for liver mask
+crcmets   -  model for crc mets
+hcclesion -  model for hcc
+
