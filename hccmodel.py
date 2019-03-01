@@ -51,7 +51,7 @@ parser.add_option( "--trainingsolver",
                   action="store", dest="trainingsolver", default='adadelta',
                   help="setup info", metavar="string")
 parser.add_option( "--dbfile",
-                  action="store", dest="dbfile", default="/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/TACEOutcome/baselineoutcome.csv",
+                  action="store", dest="dbfile", default="/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv",
                   help="training data file", metavar="string")
 parser.add_option( "--trainingresample",
                   type="int", dest="trainingresample", default=256,
@@ -86,8 +86,8 @@ def GetDataDictionary():
   CSVDictionary = {}
   with open(options.dbfile, 'r') as csvfile:
     myreader = csv.DictReader(csvfile, delimiter='\t')
-    for (idrow,row) in enumerate(myreader):
-       CSVDictionary[idrow]  =  {'image':row['Venraw'], 'label':row['TruthVen1']}  
+    for row in myreader:
+       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label']}  
   return CSVDictionary
 
 
@@ -96,17 +96,14 @@ def GetSetupKfolds(numfolds,idfold):
   import csv
   from sklearn.model_selection import KFold
   # get id from setupfiles
-  dataidsfull = []
-  with open(options.dbfile, 'r') as csvfile:
-    myreader = csv.DictReader(csvfile, delimiter=',')
-    for row in myreader:
-       dataidsfull.append( int( row['dataid']))
+  databaseinfo = GetDataDictionary()
+  dataidsfull = list(databaseinfo.keys()) 
   if (numfolds < idfold or numfolds < 1):
      raise("data input error")
   # split in folds
   if (numfolds > 1):
      kf = KFold(n_splits=numfolds)
-     allkfolds = [ (train_index, test_index) for train_index, test_index in kf.split(dataidsfull )]
+     allkfolds = [ (list(map(lambda iii: dataidsfull[iii], train_index)), list(map(lambda iii: dataidsfull[iii], test_index))) for train_index, test_index in kf.split(dataidsfull )]
      train_index = allkfolds[idfold][0]
      test_index  = allkfolds[idfold][1]
   else:
@@ -134,11 +131,11 @@ if (options.builddb):
 
   # load all data from csv
   totalnslice = 0 
-  for idrow in range(len(databaseinfo)):
+  for idrow in databaseinfo.keys():
     row = databaseinfo[idrow ]
     imagelocation = '%s/%s' % (options.rootlocation,row['image'])
     truthlocation = '%s/%s' % (options.rootlocation,row['label'])
-    print(imagelocation,truthlocation )
+    print(idrow, imagelocation,truthlocation )
 
     # load nifti file
     imagedata = nib.load(imagelocation )
@@ -160,10 +157,12 @@ if (options.builddb):
     if( np.max(restruth) ==1 ) :
       (liverboundingbox,)  = ndimage.find_objects(restruth)
       tumorboundingbox  = None
-    elif( np.max(restruth) ==2 ) :
-      (liverboundingbox,tumorboundingbox                      )  = ndimage.find_objects(restruth)
     else:
-      raise("uknown labels")
+      boundingboxes = ndimage.find_objects(restruth)
+      liverboundingbox = boundingboxes[0]
+
+    # FIXME do we need this ?
+    tumorboundingbox  = None
 
     # error check
     if( nslice  == restruth.shape[2]):
@@ -171,7 +170,7 @@ if (options.builddb):
       datamatrix = np.zeros(nslice  , dtype=mydatabasetype )
       
       # custom data type to subset  
-      datamatrix ['dataid']          = np.repeat(row['dataid']    ,nslice  ) 
+      datamatrix ['dataid']          = np.repeat(idrow ,nslice  ) 
       #datamatrix ['xbounds']      = np.repeat(boundingbox[0],nslice  ) 
       #datamatrix ['ybounds']      = np.repeat(boundingbox[1],nslice  ) 
       #datamatrix ['zbounds']      = np.repeat(boundingbox[2],nslice  ) 
@@ -513,6 +512,15 @@ elif (options.traintumor):
   def dice_metric_two(y_true, y_pred):
       batchdiceloss =  dice_imageloss(y_true, y_pred)
       return -batchdiceloss[:,2]
+  def dice_metric_three(y_true, y_pred):
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,3]
+  def dice_metric_four(y_true, y_pred):
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,4]
+  def dice_metric_five(y_true, y_pred):
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,5]
 
   # Convert the labels into a one-hot representation
   from keras.utils.np_utils import to_categorical
@@ -532,7 +540,7 @@ elif (options.traintumor):
   x_train_vector[:,:,:,1]=liver
 
   # output location
-  logfileoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+  logfileoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -566,6 +574,22 @@ elif (options.traintumor):
              # serialize weights to HDF5
              model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
              print("Saved model to disk - val_loss", self.min_valloss  )
+
+             # output predictions
+             if (options.trainingid == 'run_a'):
+               import nibabel as nib  
+               validationimgnii = nib.Nifti1Image(x_train[VALIDATION_SLICES,:,:] , None )
+               validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
+               validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
+               validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
+               y_predicted = model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
+               y_segmentation = np.argmax(y_predicted , axis=-1)
+               tumor_threshold_indices = y_predicted[:,:,:,2] > .5
+               y_segmentation[tumor_threshold_indices] = 2
+               validationprediction = nib.Nifti1Image(y_predicted, None )
+               validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
+               validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
+               validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
           return
    
       def on_batch_begin(self, batch, logs={}):
@@ -587,7 +611,7 @@ elif (options.traintumor):
   #             function:_weighted_masked_objective
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
-  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two],optimizer=options.trainingsolver)
+  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two,dice_metric_three,dice_metric_four,dice_metric_five],optimizer=options.trainingsolver)
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
@@ -598,25 +622,6 @@ elif (options.traintumor):
                       batch_size=options.trainingbatch, epochs=options.numepochs)
                       #batch_size=10, epochs=300
   
-  # ### Assignment: Extend the plot function to handle multiple classes.
-  # Then, activate the visualization callback in the training again. Try to find a slice with more than one output class to see the success.
-
-  # output predictions
-  if (options.trainingid == 'run_a'):
-    import nibabel as nib  
-    validationimgnii = nib.Nifti1Image(x_train[VALIDATION_SLICES,:,:] , None )
-    validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
-    validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
-    validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
-    y_predicted = model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
-    y_segmentation = np.argmax(y_predicted , axis=-1)
-    tumor_threshold_indices = y_predicted[:,:,:,2] > .5
-    y_segmentation[tumor_threshold_indices] = 2
-    validationprediction = nib.Nifti1Image(y_predicted, None )
-    validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
-    validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
-    validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
-  
 ##########################
 # apply model to test set
 ##########################
@@ -625,11 +630,11 @@ elif (options.setuptestset):
 
   maketargetlist = []
   # open makefile
-  with open('kfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
+  with open('hcckfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
       for idtest in test_set:
-         uidoutputdir= './tblog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+         uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
          # write target
          segmaketarget = '%s/label-%04d.nii.gz' % (uidoutputdir,idtest)
          maketargetlist.append(segmaketarget )
@@ -639,8 +644,8 @@ elif (options.setuptestset):
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
-  with open('kfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('kfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "cvtest: %s \n" % ' '.join(maketargetlist) + datastream)
+  with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
+  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "cvtest: %s \n" % ' '.join(maketargetlist) + datastream)
 
 
 ##########################

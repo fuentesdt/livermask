@@ -8,14 +8,15 @@ If on TACC, use `ibrun python3 ./liver.py [options]` to use all currently alloca
 
 Usage
 =====
-python liver.py --builddb
-python liver.py --trainmodel --idfold=0 --kfolds=1
-python liver.py --trainmodel --idfold=0 --kfolds=5
-python liver.py --trainmodel --idfold=1 --kfolds=5
-python liver.py --trainmodel --idfold=2 --kfolds=5
-python liver.py --trainmodel --idfold=3 --kfolds=5
-python liver.py --trainmodel --idfold=4 --kfolds=5
-python liver.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
+python hccmodel.py --builddb
+python hccmodel.py --traintumor --idfold=0 --kfolds=1 --numepochs=100
+python hccmodel.py --traintumor --idfold=0 --kfolds=5 --numepochs=100
+python hccmodel.py --traintumor --idfold=1 --kfolds=5 --numepochs=100
+python hccmodel.py --traintumor --idfold=2 --kfolds=5 --numepochs=100
+python hccmodel.py --traintumor --idfold=3 --kfolds=5 --numepochs=100
+python hccmodel.py --traintumor --idfold=4 --kfolds=5 --numepochs=100
+python hccmodel.py --setuptestset
+python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
 
 Unet code adapted from SPIE Tutorial
 ====================================
