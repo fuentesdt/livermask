@@ -1,7 +1,7 @@
 # usage:
 # 
-#   python ./binarylivermask.py --predictimage=./Ven.raw.nii.gz --segmentation=./onehot.nii.gz 
-#   python ./binarylivermask.py --predictimage=./Ven.raw.nii.gz --maskimage=./onehot.nii.gz --segmentation=./tumor.nii.gz  --crcmodel
+#   python ./applymodel.py --predictimage=./Ven.raw.nii.gz --segmentation=./onehot.nii.gz 
+#   python ./applymodel.py --predictimage=./Ven.raw.nii.gz --maskimage=./onehot.nii.gz --segmentation=./tumor.nii.gz  --crcmodel
 # 
 
 import numpy as np
