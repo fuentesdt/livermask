@@ -87,7 +87,7 @@ def GetDataDictionary():
   with open(options.dbfile, 'r') as csvfile:
     myreader = csv.DictReader(csvfile, delimiter='\t')
     for row in myreader:
-       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label']}  
+       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label'], 'uid':row['uid']}  
   return CSVDictionary
 
 
@@ -636,16 +636,18 @@ elif (options.setuptestset):
       for idtest in test_set:
          uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
          # write target
-         segmaketarget = '%s/label-%04d.nii.gz' % (uidoutputdir,idtest)
-         maketargetlist.append(segmaketarget )
-         imageprereq = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
-         cvtestcmd = "python ./liver.py --predictimage=%s --predictmodel=%s/tumormodelunet.json --segmentation=%s"  % (imageprereq ,uidoutputdir,segmaketarget )
-         fileHandle.write('%s: %s\n' % (segmaketarget ,imageprereq ) )
+         imageprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
+         maskprereq     = '$(TRAININGROOT)/ImageDatabase/%s/unet/mask.nii.gz' % databaseinfo[idtest]['uid']
+         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
+         segmaketarget = '$(TRAININGROOT)/ImageDatabase/%s/unethcc/tumor.nii.gz' % databaseinfo[idtest]['uid']
+         maketargetlist.append(databaseinfo[idtest]['uid'] )
+         cvtestcmd = "python ./applymodel.py --predictimage=$< --predictmodel=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
+         fileHandle.write('%s: %s %s %s\n' % (segmaketarget ,imageprereq,maskprereq,    modelprereq  ) )
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
   with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "cvtest: %s \n" % ' '.join(maketargetlist) + datastream)
+  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "UIDLIST=%s \n" % ' '.join(maketargetlist) + datastream)
 
 
 ##########################

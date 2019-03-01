@@ -18,6 +18,9 @@ parser = OptionParser()
 parser.add_option( "--modelzoo",
                   action="store", dest="modelzoo", default='/rsrch1/ip/dtfuentes/github/livermask/ModelZoo/',
                   help="model zoo location", metavar="Path")
+parser.add_option( "--modelpath",
+                  action="store", dest="modelpath", default=None,
+                  help="model location", metavar="Path")
 parser.add_option( "--livermodel",
                   action="store_true", dest="livermodel", default=False,
                   help="use liver mask model", metavar="FILE")
@@ -44,11 +47,14 @@ parser.add_option( "--trainingresample",
                   help="setup info", metavar="int")
 (options, args) = parser.parse_args()
 
-modelpath= "%s/livermask/tumormodelunet.json" % options.modelzoo
-if (options.crcmodel):
-  modelpath= "%s/crcmets/tumormodelunet.json" % options.modelzoo
-elif (options.hccmodel):
-  modelpath= "%s/hcclesion/tumormodelunet.json" % options.modelzoo
+if (options.modelpath != None ):
+  modelpath= options.modelpath
+else:
+  modelpath= "%s/livermask/tumormodelunet.json" % options.modelzoo
+  if (options.crcmodel):
+    modelpath= "%s/crcmets/tumormodelunet.json" % options.modelzoo
+  elif (options.hccmodel):
+    modelpath= "%s/hcclesion/tumormodelunet.json" % options.modelzoo
 
 assert os.path.isfile(modelpath)
 
