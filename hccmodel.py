@@ -629,25 +629,29 @@ elif (options.setuptestset):
   databaseinfo = GetDataDictionary()
 
   maketargetlist = []
+  modeltargetlist = []
   # open makefile
   with open('hcckfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
+      uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+      modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
+      fileHandle.write('%s: \n' % modelprereq  )
+      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
+      modeltargetlist.append(modelprereq    )
       for idtest in test_set:
-         uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
          # write target
          imageprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
          maskprereq     = '$(TRAININGROOT)/ImageDatabase/%s/unet/mask.nii.gz' % databaseinfo[idtest]['uid']
-         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
          segmaketarget = '$(TRAININGROOT)/ImageDatabase/%s/unethcc/tumor.nii.gz' % databaseinfo[idtest]['uid']
          maketargetlist.append(databaseinfo[idtest]['uid'] )
-         cvtestcmd = "python ./applymodel.py --predictimage=$< --predictmodel=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
+         cvtestcmd = "python ./applymodel.py --predictimage=$< --modelpath=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
          fileHandle.write('%s: %s %s %s\n' % (segmaketarget ,imageprereq,maskprereq,    modelprereq  ) )
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
   with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "UIDLIST=%s \n" % ' '.join(maketargetlist) + datastream)
+  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "UIDLIST=%s \n" % ' '.join(maketargetlist) + "models: %s \n" % ' '.join(modeltargetlist) +datastream)
 
 
 ##########################
