@@ -252,7 +252,6 @@ elif (options.builddb):
     row = databaseinfo[idrow ]
     imagelocation = '%s/%s' % (options.rootlocation,row['image'])
     truthlocation = '%s/%s' % (options.rootlocation,row['label'])
-    print(idrow, imagelocation,truthlocation )
 
     # load nifti file
     imagedata = nib.load(imagelocation )
@@ -280,6 +279,8 @@ elif (options.builddb):
 
     # FIXME do we need this ?
     tumorboundingbox  = None
+
+    print(idrow, imagelocation,truthlocation, nslice )
 
     # error check
     if( nslice  == restruth.shape[2]):
@@ -754,7 +755,7 @@ elif (options.setuptestset):
       uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
-      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
+      fileHandle.write('\techo python hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
       modeltargetlist.append(modelprereq    )
       for idtest in test_set:
          # write target
