@@ -701,9 +701,9 @@ elif (options.traintumor):
                validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
                validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
                y_predicted = model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
+               # liver mask should be close to 1.
+               y_predicted[:,:,:,1] = .5 * y_predicted[:,:,:,1] 
                y_segmentation = np.argmax(y_predicted , axis=-1)
-               tumor_threshold_indices = y_predicted[:,:,:,2] > .5
-               y_segmentation[tumor_threshold_indices] = 2
                validationprediction = nib.Nifti1Image(y_predicted, None )
                validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
                validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
