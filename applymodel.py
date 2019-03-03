@@ -56,6 +56,8 @@ else:
   elif (options.hccmodel):
     modelpath= "%s/hcclesion/tumormodelunet.json" % options.modelzoo
 
+print("using %s " % modelpath)
+
 assert os.path.isfile(modelpath)
 
 # FIXME:  @jonasactor - is there a better software/programming practice to keep track  of the global variables?
@@ -71,7 +73,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   # force cpu for debug
   import os
   os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-  # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+  #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
   from keras.models import model_from_json
   # load json and create model
   _glexpx = _globalexpectedpixel
@@ -111,14 +113,19 @@ if (options.predictimage != None and options.segmentation != None and options.c3
      segout = loaded_model.predict(predict_vector  )
 
      # post processing
-     postprocessingcmd = '%s %s %s -thresh -inf .5 1 0 -add -o %s' % (options.c3dexe,  options.maskimage, options.segmentation.replace('.nii.gz', '-2.nii.gz' ), options.segmentation)
+     postprocessingcmd = '%s -verbose  %s  -scale .5 %s  -vote -o %s' % (options.c3dexe,  options.segmentation.replace('.nii.gz', '-[01].nii.gz' ), options.segmentation.replace('.nii.gz','-[23456789].nii.gz'), options.segmentation)
 
   else:
      # apply 2d model to all slices
      segout = loaded_model.predict(resizepredict[:,:,:,np.newaxis] )
 
      # post processing
-     postprocessingcmd = '%s %s -vote  -binarize -o %s -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation.replace('.nii.gz', '-?.nii.gz' ), options.segmentation.replace('.nii.gz', 'binarize.nii.gz' ), options.segmentation)
+     postprocessingcmd = '%s -verbose %s -vote  -binarize -o %s -comp -thresh 1 1 1 0 -o %s' % (options.c3dexe, options.segmentation.replace('.nii.gz', '-?.nii.gz' ), options.segmentation.replace('.nii.gz', 'binarize.nii.gz' ), options.segmentation)
+
+  # make sure directory exists
+  mkdircmd = "mkdir -p %s" % "/".join(options.segmentation.split("/")[:-1])
+  print(mkdircmd )
+  os.system (mkdircmd )
 
   # write out each one-hot image
   numlabel = segout.shape[-1]
@@ -126,7 +133,6 @@ if (options.predictimage != None and options.segmentation != None and options.c3
       segout_resize = skimage.transform.resize(segout[...,jjj],(nslice,_glexpx,_glexpx),order=0,preserve_range=True,mode='constant').transpose(2,1,0)
       segout_img = nib.Nifti1Image(segout_resize, None, header=imageheader)
       segout_img.to_filename( options.segmentation.replace('.nii.gz', '-%d.nii.gz' % jjj) )
-
 
   print(postprocessingcmd)
   os.system (postprocessingcmd )
