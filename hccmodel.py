@@ -8,6 +8,9 @@ SEG_DTYPE = np.uint8
 # setup command line parser to control execution
 from optparse import OptionParser
 parser = OptionParser()
+parser.add_option( "--initialize",
+                  action="store_true", dest="initialize", default=False,
+                  help="build initial sql file ", metavar = "BOOL")
 parser.add_option( "--builddb",
                   action="store_true", dest="builddb", default=False,
                   help="load all training data into npy", metavar="FILE")
@@ -66,34 +69,34 @@ parser.add_option( "--idfold",
                   type="int", dest="idfold", default=0,
                   help="setup info", metavar="int")
 parser.add_option( "--rootlocation",
-                  action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/',
+                  action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse',
                   help="setup info", metavar="string")
 parser.add_option("--numepochs",
                   type="int", dest="numepochs", default=10,
                   help="number of epochs for training", metavar="int")
 (options, args) = parser.parse_args()
-
-
-# FIXME:  @jonasactor - is there a better software/programming practice to keep track  of the global variables?
-_globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
+# options dependency 
+options.sqlitefile = options.dbfile.replace('.csv','.sqlite' )
+options.globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
 _globalexpectedpixel=512
-print('database file: %s ' % _globalnpfile )
+print('database file: %s sqlfile: %s' % (options.globalnpfile,options.sqlitefile) )
+  
 
 
 # build data base from CSV file
 def GetDataDictionary():
-  import csv
+  import sqlite3
   CSVDictionary = {}
-  with open(options.dbfile, 'r') as csvfile:
-    myreader = csv.DictReader(csvfile, delimiter='\t')
-    for row in myreader:
+  tagsconn = sqlite3.connect(options.sqlitefile)
+  cursor = tagsconn.execute(' SELECT aq.* from hccdata aq ;' )
+  names = [description[0] for description in cursor.description]
+  sqlStudyList = [ dict(zip(names,xtmp)) for xtmp in cursor ]
+  for row in sqlStudyList :
        CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label'], 'uid':row['uid']}  
-  return CSVDictionary
-
+  return CSVDictionary 
 
 # setup kfolds
 def GetSetupKfolds(numfolds,idfold):
-  import csv
   from sklearn.model_selection import KFold
   # get id from setupfiles
   databaseinfo = GetDataDictionary()
@@ -111,11 +114,125 @@ def GetSetupKfolds(numfolds,idfold):
      test_index  = None  
   return (train_index,test_index)
 
+## Borrowed from
+## $(SLICER_DIR)/CTK/Libs/DICOM/Core/Resources/dicom-schema.sql
+## 
+## --
+## -- A simple SQLITE3 database schema for modelling locally stored DICOM files
+## --
+## -- Note: the semicolon at the end is necessary for the simple parser to separate
+## --       the statements since the SQlite driver does not handle multiple
+## --       commands per QSqlQuery::exec call!
+## -- ;
+## TODO note that SQLite does not enforce the length of a VARCHAR. 
+## TODO (9) What is the maximum size of a VARCHAR in SQLite?
+##
+## TODO http://www.sqlite.org/faq.html#q9
+##
+## TODO SQLite does not enforce the length of a VARCHAR. You can declare a VARCHAR(10) and SQLite will be happy to store a 500-million character string there. And it will keep all 500-million characters intact. Your content is never truncated. SQLite understands the column type of "VARCHAR(N)" to be the same as "TEXT", regardless of the value of N.
+initializedb = """
+DROP TABLE IF EXISTS 'Images' ;
+DROP TABLE IF EXISTS 'Patients' ;
+DROP TABLE IF EXISTS 'Series' ;
+DROP TABLE IF EXISTS 'Studies' ;
+DROP TABLE IF EXISTS 'Directories' ;
+DROP TABLE IF EXISTS 'lstat' ;
+DROP TABLE IF EXISTS 'overlap' ;
+
+CREATE TABLE 'Images' (
+ 'SOPInstanceUID' VARCHAR(64) NOT NULL,
+ 'Filename' VARCHAR(1024) NOT NULL ,
+ 'SeriesInstanceUID' VARCHAR(64) NOT NULL ,
+ 'InsertTimestamp' VARCHAR(20) NOT NULL ,
+ PRIMARY KEY ('SOPInstanceUID') );
+CREATE TABLE 'Patients' (
+ 'PatientsUID' INT PRIMARY KEY NOT NULL ,
+ 'StdOut'     varchar(1024) NULL ,
+ 'StdErr'     varchar(1024) NULL ,
+ 'ReturnCode' INT   NULL ,
+ 'FindStudiesCMD' VARCHAR(1024)  NULL );
+CREATE TABLE 'Series' (
+ 'SeriesInstanceUID' VARCHAR(64) NOT NULL ,
+ 'StudyInstanceUID' VARCHAR(64) NOT NULL ,
+ 'Modality'         VARCHAR(64) NOT NULL ,
+ 'SeriesDescription' VARCHAR(255) NULL ,
+ 'StdOut'     varchar(1024) NULL ,
+ 'StdErr'     varchar(1024) NULL ,
+ 'ReturnCode' INT   NULL ,
+ 'MoveSeriesCMD'    VARCHAR(1024) NULL ,
+ PRIMARY KEY ('SeriesInstanceUID','StudyInstanceUID') );
+CREATE TABLE 'Studies' (
+ 'StudyInstanceUID' VARCHAR(64) NOT NULL ,
+ 'PatientsUID' INT NOT NULL ,
+ 'StudyDate' DATE NULL ,
+ 'StudyTime' VARCHAR(20) NULL ,
+ 'AccessionNumber' INT NULL ,
+ 'StdOut'     varchar(1024) NULL ,
+ 'StdErr'     varchar(1024) NULL ,
+ 'ReturnCode' INT   NULL ,
+ 'FindSeriesCMD'    VARCHAR(1024) NULL ,
+ 'StudyDescription' VARCHAR(255) NULL ,
+ PRIMARY KEY ('StudyInstanceUID') );
+
+CREATE TABLE 'Directories' (
+ 'Dirname' VARCHAR(1024) ,
+ PRIMARY KEY ('Dirname') );
+
+CREATE TABLE lstat  (
+   InstanceUID        VARCHAR(255)  NOT NULL,  --  'studyuid *OR* seriesUID'
+   SegmentationID     VARCHAR(80)   NOT NULL,  -- UID for segmentation file 
+   FeatureID          VARCHAR(80)   NOT NULL,  -- UID for image feature     
+   LabelID            INT           NOT NULL,  -- label id for LabelSOPUID statistics of FeatureSOPUID
+   Mean               REAL              NULL,
+   StdD               REAL              NULL,
+   Max                REAL              NULL,
+   Min                REAL              NULL,
+   Count              INT               NULL,
+   Volume             REAL              NULL,
+   ExtentX            INT               NULL,
+   ExtentY            INT               NULL,
+   ExtentZ            INT               NULL,
+   PRIMARY KEY (InstanceUID,SegmentationID,FeatureID,LabelID) );
+
+-- expected csv format
+-- FirstImage,SecondImage,LabelID,InstanceUID,MatchingFirst,MatchingSecond,SizeOverlap,DiceSimilarity,IntersectionRatio
+CREATE TABLE overlap(
+   FirstImage         VARCHAR(80)   NOT NULL,  -- UID for  FirstImage  
+   SecondImage        VARCHAR(80)   NOT NULL,  -- UID for  SecondImage 
+   LabelID            INT           NOT NULL,  -- label id for LabelSOPUID statistics of FeatureSOPUID 
+   InstanceUID        VARCHAR(255)  NOT NULL,  --  'studyuid *OR* seriesUID',  
+   -- output of c3d firstimage.nii.gz secondimage.nii.gz -overlap LabelID
+   -- Computing overlap #1 and #2
+   -- OVL: 6, 11703, 7362, 4648, 0.487595, 0.322397  
+   MatchingFirst      int           DEFAULT NULL,     --   Matching voxels in first image:  11703
+   MatchingSecond     int           DEFAULT NULL,     --   Matching voxels in second image: 7362
+   SizeOverlap        int           DEFAULT NULL,     --   Size of overlap region:          4648
+   DiceSimilarity     real          DEFAULT NULL,     --   Dice similarity coefficient:     0.487595
+   IntersectionRatio  real          DEFAULT NULL,     --   Intersection / ratio:            0.322397
+   PRIMARY KEY (InstanceUID,FirstImage,SecondImage,LabelID) );
+"""
+
+
+#############################################################
+# build initial sql file 
+#############################################################
+if (options.initialize ):
+  import sqlite3
+  import pandas
+  import os
+  # build new database
+  os.system('rm %s'  % options.sqlitefile )
+  tagsconn = sqlite3.connect(options.sqlitefile )
+  for sqlcmd in initializedb.split(";"):
+     tagsconn.execute(sqlcmd )
+  # load csv file
+  df = pandas.read_csv(options.dbfile,delimiter='\t')
+  df.to_sql('hccdata', tagsconn , if_exists='append', index=False)
+
 ##########################
 # preprocess database and store to disk
 ##########################
-if (options.builddb):
-  import csv
+elif (options.builddb):
   import nibabel as nib  
   from scipy import ndimage
   import skimage.transform
@@ -126,10 +243,10 @@ if (options.builddb):
   # initialize empty dataframe
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
 
-  # build data base from CSV file
+  # build data base 
   databaseinfo = GetDataDictionary()
 
-  # load all data from csv
+  # load all data 
   totalnslice = 0 
   for idrow in databaseinfo.keys():
     row = databaseinfo[idrow ]
@@ -194,7 +311,7 @@ if (options.builddb):
       print('training data error image[2] = %d , truth[2] = %d ' % (nslice,restruth.shape[2]))
 
   # save numpy array to disk
-  np.save( _globalnpfile,numpydatabase )
+  np.save( options.globalnpfile,numpydatabase )
 
 ##########################
 # build NN model for tumor segmentation
@@ -203,8 +320,8 @@ elif (options.traintumor):
 
   # load database
   print('loading memory map db for large dataset')
-  #numpydatabase = np.load(_globalnpfile,mmap_mode='r')
-  numpydatabase = np.load(_globalnpfile)
+  #numpydatabase = np.load(options.globalnpfile,mmap_mode='r')
+  numpydatabase = np.load(options.globalnpfile)
 
   #setup kfolds
   (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
@@ -651,7 +768,7 @@ elif (options.setuptestset):
 
   # build job list
   with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + "UIDLIST=%s \n" % ' '.join(maketargetlist) + "models: %s \n" % ' '.join(modeltargetlist) +datastream)
+  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "UIDLIST=%s \n" % ' '.join(maketargetlist) + "models: %s \n" % ' '.join(modeltargetlist) +datastream)
 
 
 ##########################

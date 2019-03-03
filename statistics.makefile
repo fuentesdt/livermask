@@ -18,3 +18,5 @@ $(WORKDIR)/%/unethcc/overlap.csv: $(WORKDIR)/%/unethcc/tumor.nii.gz
 	$(C3DEXE) $(DATADIR)/$*/TruthVen1.nii.gz  -as A $< -as B -overlap 1 -overlap 2 -overlap 3 -overlap 4  -overlap 5  > $(@D)/overlap.txt
 	grep "^OVL" $(@D)/overlap.txt  |sed "s/OVL: \([0-9]\),/\1,$(subst /,\/,$*),/g;s/OVL: 1\([0-9]\),/1\1,$(subst /,\/,$*),/g;s/^/TruthVen1.nii.gz,unethcc\/tumor.nii.gz,/g;"  | sed "1 i FirstImage,SecondImage,LabelID,InstanceUID,MatchingFirst,MatchingSecond,SizeOverlap,DiceSimilarity,IntersectionRatio" > $@
 
+$(WORKDIR)/%.sql: $(WORKDIR)/%.csv
+	sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< overlap"
