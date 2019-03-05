@@ -666,7 +666,7 @@ elif (options.traintumor):
   y_train_one_hot = to_categorical(t, num_classes=t_max+1).reshape((y_train.shape)+(t_max+1,))
   print("Shape before: {}; Shape after: {}".format(y_train.shape, y_train_one_hot.shape))
   # The liver neuron should also be active for lesions within the liver
-  liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
+  liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   y_train_one_hot[:,:,:,1]=liver
   
   # vectorize input assume that liver mask is given
@@ -771,7 +771,7 @@ elif (options.setuptestset):
       uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
-      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
+      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (iii,options.kfolds))
       modeltargetlist.append(modelprereq    )
       uiddictionary[iii]=[]
       for idtest in test_set:

@@ -74,6 +74,11 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   import os
   os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
   os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+  import keras
+  import tensorflow as tf
+  print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
+
   from keras.models import model_from_json
   # load json and create model
   _glexpx = _globalexpectedpixel
@@ -98,7 +103,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   if (options.maskimage != None):
      imagemask = nib.load(options.maskimage)
      maskheader  = imagemask.header
-     numpymask = imagemask.get_data().astype(IMG_DTYPE )
+     numpymask = imagemask.get_data().astype(SEG_DTYPE )
      # error check
      assert numpymask.shape[0:2] == (_glexpx,_glexpx)
      masknslice = numpymask.shape[2]
@@ -110,7 +115,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
      predict_vector [:,:,:,1]=resize_mask 
 
      # apply 2d model to all slices
-     segout = loaded_model.predict(predict_vector  )
+     segout = loaded_model.predict(predict_vector[slice(0,nslice),:,:,:]  )
 
      # post processing
      postprocessingcmd = '%s -verbose  %s  -scale .5 %s  -vote -o %s' % (options.c3dexe,  options.segmentation.replace('.nii.gz', '-[01].nii.gz' ), options.segmentation.replace('.nii.gz','-[23456789].nii.gz'), options.segmentation)
