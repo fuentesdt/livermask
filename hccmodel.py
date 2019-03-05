@@ -325,7 +325,16 @@ elif (options.traintumor):
   numpydatabase = np.load(options.globalnpfile)
 
   #setup kfolds
-  (train_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
+  (train_validation_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
+
+  #break into independent training and validation sets
+  studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
+  ntotaltrainval    =  len(train_validation_index)
+  trainvalsplit     =  int(studydict[options.trainingid] * ntotaltrainval   )
+  train_index       =  train_validation_index[0: trainvalsplit  ]
+  validation_index  =  train_validation_index[trainvalsplit:    ]
+
+  print("train_index:",train_index,' validation_index: ',validation_index,' test_index: ',test_index)
 
   # uses 'views' for efficient memory usage
   # https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.indexing.html
@@ -334,30 +343,37 @@ elif (options.traintumor):
   #dataidarray = numpydatabase['dataid'].copy()
   axialbounds = numpydatabase['axialliverbounds']
   dataidarray = numpydatabase['dataid']
-  dbtrainindex= np.isin(dataidarray, train_index )
-  dbtestindex = np.isin(dataidarray, test_index  )
-  subsetidx_train  = np.all( np.vstack((axialbounds , dbtrainindex)) , axis=0 )
-  subsetidx_test   = np.all( np.vstack((axialbounds , dbtestindex )) , axis=0 )
+  
+
+  # setup indicies
+  dbtrainindex         = np.isin(dataidarray,      train_index )
+  dbvalidationindex    = np.isin(dataidarray, validation_index )
+  dbtestindex          = np.isin(dataidarray,      test_index  )
+  subsetidx_train      = np.all( np.vstack((axialbounds , dbtrainindex))      , axis=0 )
+  subsetidx_validation = np.all( np.vstack((axialbounds , dbvalidationindex)) , axis=0 )
+  subsetidx_test       = np.all( np.vstack((axialbounds , dbtestindex ))      , axis=0 )
   # error check
-  if  np.sum(subsetidx_train   ) + np.sum(subsetidx_test) != min(np.sum(axialbounds ),np.sum(dbtrainindex )) :
+  if  np.sum(subsetidx_train   ) + np.sum(subsetidx_test)  + np.sum(subsetidx_validation ) != np.sum(axialbounds ) :
     raise("data error")
   print('copy memory map from disk to RAM...')
+
+  # load training data as views
   #trainingsubset = numpydatabase[subsetidx   ].copy()
-  trainingsubset = numpydatabase[subsetidx_train   ]
+  trainingsubset   = numpydatabase[subsetidx_train      ]
+  validationsubset = numpydatabase[subsetidx_validation ]
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
   np.random.shuffle(trainingsubset )
 
   # subset within bounding box that has liver
-  totnslice = len(trainingsubset)
-  print("nslice ",totnslice )
+  totnslice = len(trainingsubset) + len(validationsubset)
+  slicesplit =  len(trainingsubset)
+  print("nslice: ",totnslice ," split: " ,slicesplit )
 
-  # load training data as views
-  x_train=trainingsubset['imagedata']
-  y_train=trainingsubset['truthdata']
-  studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
-  slicesplit =  int(studydict[options.trainingid] * totnslice )
+  # FIXME - Verify stacking indicies
+  x_train=np.vstack((trainingsubset['imagedata'],validationsubset['imagedata']))
+  y_train=np.vstack((trainingsubset['truthdata'],validationsubset['truthdata']))
   TRAINING_SLICES      = slice(0,slicesplit)
   VALIDATION_SLICES    = slice(slicesplit,totnslice)
 
@@ -755,7 +771,7 @@ elif (options.setuptestset):
       uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
-      fileHandle.write('\techo python hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
+      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
       modeltargetlist.append(modelprereq    )
       for idtest in test_set:
          # write target
