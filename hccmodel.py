@@ -762,7 +762,7 @@ elif (options.traintumor):
 elif (options.setuptestset):
   databaseinfo = GetDataDictionary()
 
-  maketargetlist = []
+  uiddictionary = {}
   modeltargetlist = []
   # open makefile
   with open('hcckfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
@@ -773,19 +773,24 @@ elif (options.setuptestset):
       fileHandle.write('%s: \n' % modelprereq  )
       fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=100\n' % (iii,options.kfolds))
       modeltargetlist.append(modelprereq    )
+      uiddictionary[iii]=[]
       for idtest in test_set:
          # write target
          imageprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
          maskprereq     = '$(TRAININGROOT)/ImageDatabase/%s/unet/mask.nii.gz' % databaseinfo[idtest]['uid']
          segmaketarget = '$(TRAININGROOT)/ImageDatabase/%s/unethcc/tumor.nii.gz' % databaseinfo[idtest]['uid']
-         maketargetlist.append(databaseinfo[idtest]['uid'] )
+         uiddictionary[iii].append(databaseinfo[idtest]['uid'] )
          cvtestcmd = "python ./applymodel.py --predictimage=$< --modelpath=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
          fileHandle.write('%s: %s %s %s\n' % (segmaketarget ,imageprereq,maskprereq,    modelprereq  ) )
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
   with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified: modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "UIDLIST=%s \n" % ' '.join(maketargetlist) + "models: %s \n" % ' '.join(modeltargetlist) +datastream)
+  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified:
+     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
+     for idkey in uiddictionary.keys():
+        modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))
+     modified.write("UIDLIST=%s \n" % " ".join(map(lambda x : "$(UIDLIST%d)" % x, uiddictionary.keys()))    +datastream)
 
 
 ##########################

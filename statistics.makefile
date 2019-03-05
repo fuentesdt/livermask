@@ -21,7 +21,7 @@ qastats/%/lstat.csv:
 	$(C3DEXE) $(WORKDIR)/$*/Ven.raw.nii.gz  $(DATADIR)/$*/TruthVen1.nii.gz -lstat > $(@D)/lstat.txt &&  sed "s/^\s\+/$(subst /,\/,$*),TruthVen1.nii.gz,Ven.raw.nii.gz,/g;s/\s\+/,/g;s/LabelID/InstanceUID,SegmentationID,FeatureID,LabelID/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" $(@D)/lstat.txt > $@
 
 qastats/%/lstat.sql: qastats/%/lstat.csv
-	sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"
+	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"
 
 ## dice statistics
 $(WORKDIR)/%/unethcc/overlap.csv: $(WORKDIR)/%/unethcc/tumor.nii.gz
@@ -30,4 +30,4 @@ $(WORKDIR)/%/unethcc/overlap.csv: $(WORKDIR)/%/unethcc/tumor.nii.gz
 	grep "^OVL" $(@D)/overlap.txt  |sed "s/OVL: \([0-9]\),/\1,$(subst /,\/,$*),/g;s/OVL: 1\([0-9]\),/1\1,$(subst /,\/,$*),/g;s/^/TruthVen1.nii.gz,unethcc\/tumor.nii.gz,/g;"  | sed "1 i FirstImage,SecondImage,LabelID,InstanceUID,MatchingFirst,MatchingSecond,SizeOverlap,DiceSimilarity,IntersectionRatio" > $@
 
 $(WORKDIR)/%/overlap.sql: $(WORKDIR)/%/overlap.csv
-	sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< overlap"
+	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< overlap"
