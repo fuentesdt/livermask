@@ -365,6 +365,7 @@ elif (options.traintumor):
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
   np.random.shuffle(trainingsubset )
+  np.random.shuffle(validationsubset )
 
   # subset within bounding box that has liver
   totnslice = len(trainingsubset) + len(validationsubset)
@@ -623,6 +624,10 @@ elif (options.traintumor):
   #  kimagesum    =    K.sum(kxx , axis = (1,2)) 
   #  zzz = xxx / imagesum[:,np.newaxis,np.newaxis,:] 
   #  kzz = kxx / K.expand_dims(K.expand_dims(kimagesum,axis=1),axis=2)
+  #  
+  #  NOTE - dice similarity and average are NOT commutative - DSC(AVG) .NE. AVG(DSC)
+  #  NOTE - to get the same DSC values in c3d you need to break up the image in batches and compute the dsc for each batch and then average the dsc values per batch.
+  #  NOTE - will get different values if you compute the dsc over the whole image without breaking into batches.
   def dice_imageloss(y_true, y_pred, smooth=0):
       """
       Dice = \sum_Nbatch \sum_Nonehot (2*|X & Y|)/ (|X|+ |Y|)
@@ -702,11 +707,11 @@ elif (options.traintumor):
              self.min_valloss = logs.get('val_loss')
              # https://machinelearningmastery.com/save-load-keras-deep-learning-models/
              # serialize model to JSON
-             model_json = model.to_json()
+             model_json = self.model.to_json()
              with open("%s/tumormodelunet.json" % logfileoutputdir , "w") as json_file:
                  json_file.write(model_json)
              # serialize weights to HDF5
-             model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
+             self.model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
              print("Saved model to disk - val_loss", self.min_valloss  )
 
              # output predictions
@@ -716,7 +721,7 @@ elif (options.traintumor):
                validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
                validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
                validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
-               y_predicted = model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
+               y_predicted = self.model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
                # liver mask should be close to 1.
                y_predicted[:,:,:,1] = .5 * y_predicted[:,:,:,1] 
                y_segmentation = np.argmax(y_predicted , axis=-1)
