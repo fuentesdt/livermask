@@ -674,7 +674,13 @@ elif (options.traintumor):
   y_train_one_hot = to_categorical(t, num_classes=t_max+1).reshape((y_train.shape)+(t_max+1,))
   print("Shape before: {}; Shape after: {}".format(y_train.shape, y_train_one_hot.shape))
   # The liver neuron should also be active for lesions within the liver
-  liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  # FIXME - HACK - data nuances
+  if( options.databaseid == 'hcc'):
+    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  elif( options.databaseid == 'crc'):
+    liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
+  else:
+    raise("uknown  dataset")
   y_train_one_hot[:,:,:,1]=liver
   
   # vectorize input assume that liver mask is given
