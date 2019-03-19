@@ -53,9 +53,9 @@ parser.add_option( "--trainingloss",
 parser.add_option( "--trainingsolver",
                   action="store", dest="trainingsolver", default='adadelta',
                   help="setup info", metavar="string")
-parser.add_option( "--dbfile",
-                  action="store", dest="dbfile", default="/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv",
-                  help="training data file", metavar="string")
+parser.add_option( "--databaseid",
+                  action="store", dest="databaseid", default='crc',
+                  help="available data: hcc, crc", metavar="string")
 parser.add_option( "--trainingresample",
                   type="int", dest="trainingresample", default=256,
                   help="setup info", metavar="int")
@@ -68,27 +68,30 @@ parser.add_option( "--kfolds",
 parser.add_option( "--idfold",
                   type="int", dest="idfold", default=0,
                   help="setup info", metavar="int")
-parser.add_option( "--rootlocation",
-                  action="store", dest="rootlocation", default='/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse',
-                  help="setup info", metavar="string")
 parser.add_option("--numepochs",
                   type="int", dest="numepochs", default=10,
                   help="number of epochs for training", metavar="int")
 (options, args) = parser.parse_args()
+
+# current datasets
+trainingdictionary = {'hcc':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
+                      'crc':{'dbfile':'./crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
+
 # options dependency 
+options.dbfile       = trainingdictionary[options.databaseid]['dbfile']
+options.rootlocation = trainingdictionary[options.databaseid]['rootlocation']
 options.sqlitefile = options.dbfile.replace('.csv','.sqlite' )
 options.globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
 _globalexpectedpixel=512
-print('database file: %s sqlfile: %s' % (options.globalnpfile,options.sqlitefile) )
+print('database file: %s sqlfile: %s dbfile: %s rootlocation: %s' % (options.globalnpfile,options.sqlitefile,options.dbfile, options.rootlocation ) )
   
-
 
 # build data base from CSV file
 def GetDataDictionary():
   import sqlite3
   CSVDictionary = {}
   tagsconn = sqlite3.connect(options.sqlitefile)
-  cursor = tagsconn.execute(' SELECT aq.* from hccdata aq ;' )
+  cursor = tagsconn.execute(' SELECT aq.* from trainingdata aq ;' )
   names = [description[0] for description in cursor.description]
   sqlStudyList = [ dict(zip(names,xtmp)) for xtmp in cursor ]
   for row in sqlStudyList :
@@ -227,7 +230,7 @@ if (options.initialize ):
      tagsconn.execute(sqlcmd )
   # load csv file
   df = pandas.read_csv(options.dbfile,delimiter='\t')
-  df.to_sql('hccdata', tagsconn , if_exists='append', index=False)
+  df.to_sql('trainingdata', tagsconn , if_exists='append', index=False)
 
 ##########################
 # preprocess database and store to disk
@@ -679,7 +682,7 @@ elif (options.traintumor):
   x_train_vector[:,:,:,1]=liver
 
   # output location
-  logfileoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -770,10 +773,10 @@ elif (options.setuptestset):
   uiddictionary = {}
   modeltargetlist = []
   # open makefile
-  with open('hcckfold%03d.makefile' % options.kfolds ,'w') as fileHandle:
+  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds) ,'w') as fileHandle:
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
-      uidoutputdir= './hcclog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+      uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
       fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (iii,options.kfolds))
@@ -790,8 +793,8 @@ elif (options.setuptestset):
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
-  with open('hcckfold%03d.makefile' % options.kfolds, 'r') as original: datastream = original.read()
-  with open('hcckfold%03d.makefile' % options.kfolds, 'w') as modified:
+  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'r') as original: datastream = original.read()
+  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'w') as modified:
      modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
      for idkey in uiddictionary.keys():
         modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))

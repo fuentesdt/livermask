@@ -8,14 +8,25 @@ If on TACC, use `ibrun python3 ./liver.py [options]` to use all currently alloca
 
 Usage
 =====
-python hccmodel.py --builddb
-python hccmodel.py --traintumor --idfold=0 --kfolds=1 --numepochs=100
-python hccmodel.py --traintumor --idfold=0 --kfolds=5 --numepochs=100
-python hccmodel.py --traintumor --idfold=1 --kfolds=5 --numepochs=100
-python hccmodel.py --traintumor --idfold=2 --kfolds=5 --numepochs=100
-python hccmodel.py --traintumor --idfold=3 --kfolds=5 --numepochs=100
-python hccmodel.py --traintumor --idfold=4 --kfolds=5 --numepochs=100
-python hccmodel.py --setuptestset
+python hccmodel.py --databaseid=hcc --initialize
+python hccmodel.py --databaseid=hcc --builddb
+python hccmodel.py --databaseid=hcc --traintumor --idfold=0 --kfolds=1 --numepochs=100
+python hccmodel.py --databaseid=hcc --traintumor --idfold=0 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hcc --traintumor --idfold=1 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hcc --traintumor --idfold=2 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hcc --traintumor --idfold=3 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hcc --traintumor --idfold=4 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hcc --setuptestset
+
+python hccmodel.py --databaseid=crc --initialize
+python hccmodel.py --databaseid=crc --builddb
+python hccmodel.py --databaseid=crc --traintumor --idfold=0 --kfolds=1 --numepochs=100
+python hccmodel.py --databaseid=crc --traintumor --idfold=0 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=crc --traintumor --idfold=1 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=crc --traintumor --idfold=2 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=crc --traintumor --idfold=3 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=crc --traintumor --idfold=4 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=crc --setuptestset
 python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
 
 Unet code adapted from SPIE Tutorial
