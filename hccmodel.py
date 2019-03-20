@@ -95,7 +95,7 @@ def GetDataDictionary():
   names = [description[0] for description in cursor.description]
   sqlStudyList = [ dict(zip(names,xtmp)) for xtmp in cursor ]
   for row in sqlStudyList :
-       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label'], 'uid':row['uid']}  
+       CSVDictionary[int( row['dataid'])]  =  {'image':row['image'], 'label':row['label'], 'uid':"%s" %row['uid']}  
   return CSVDictionary 
 
 # setup kfolds
@@ -759,7 +759,8 @@ elif (options.traintumor):
   #             function:_weighted_masked_objective
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
-  model.compile(loss=lossdict[options.trainingloss],metrics=[dice_metric_zero,dice_metric_one,dice_metric_two,dice_metric_three,dice_metric_four,dice_metric_five],optimizer=options.trainingsolver)
+  metricsList=[dice_metric_zero,dice_metric_one,dice_metric_two,dice_metric_three,dice_metric_four,dice_metric_five]
+  model.compile(loss=lossdict[options.trainingloss],metrics=metricsList[:(t_max+1)],optimizer=options.trainingsolver)
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
@@ -785,7 +786,7 @@ elif (options.setuptestset):
       uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
-      fileHandle.write('\tpython hccmodel.py --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (iii,options.kfolds))
+      fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,iii,options.kfolds))
       modeltargetlist.append(modelprereq    )
       uiddictionary[iii]=[]
       for idtest in test_set:
