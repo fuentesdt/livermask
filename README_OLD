@@ -26,7 +26,8 @@ python hccmodel.py --databaseid=crc --traintumor --idfold=1 --kfolds=5 --numepoc
 python hccmodel.py --databaseid=crc --traintumor --idfold=2 --kfolds=5 --numepochs=100
 python hccmodel.py --databaseid=crc --traintumor --idfold=3 --kfolds=5 --numepochs=100
 python hccmodel.py --databaseid=crc --traintumor --idfold=4 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=crc --setuptestset
+python hccmodel.py --databaseid=crc --setupcrctestset
+python hccmodel.py --databaseid=crc --setupcrctestset --trainingsolver=RMSprop
 python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
 
 Unet code adapted from SPIE Tutorial

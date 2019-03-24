@@ -20,6 +20,9 @@ parser.add_option( "--traintumor",
 parser.add_option( "--setuptestset",
                   action="store_true", dest="setuptestset", default=False,
                   help="cross validate test set", metavar="FILE")
+parser.add_option( "--setupcrctestset",
+                  action="store_true", dest="setupcrctestset", default=False,
+                  help="cross validate test set", metavar="FILE")
 parser.add_option( "--debug",
                   action="store_true", dest="debug", default=False,
                   help="compare tutorial dtype", metavar="Bool")
@@ -802,6 +805,48 @@ elif (options.setuptestset):
   # build job list
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'r') as original: datastream = original.read()
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'w') as modified:
+     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
+     for idkey in uiddictionary.keys():
+        modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))
+     modified.write("UIDLIST=%s \n" % " ".join(map(lambda x : "$(UIDLIST%d)" % x, uiddictionary.keys()))    +datastream)
+
+##########################
+# apply model to test set
+##########################
+elif (options.setupcrctestset):
+  databaseinfo = GetDataDictionary()
+
+  uiddictionary = {}
+  modeltargetlist = []
+  trainingsolverList = ['adadelta','RMSprop']
+  makefileoutput = '%skfold%03d.makefile' % (options.databaseid,options.kfolds) 
+  # open makefile
+  with open(makefileoutput ,'w') as fileHandle:
+    for trainingsolverid in trainingsolverList:
+      for iii in range(options.kfolds):
+        (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
+        uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,trainingsolverid,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+        modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
+        fileHandle.write('%s: \n' % modelprereq  )
+        fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --trainingsolver=%s --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,trainingsolverid,iii,options.kfolds))
+        modeltargetlist.append(modelprereq    )
+        uiddictionary[iii]=[]
+        for idtest in test_set:
+           # write target
+           imageprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
+           labelprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['label']
+           setuptarget    = '$(WORKDIR)/%s/unet%s/setup' % (databaseinfo[idtest]['uid'],trainingsolverid)
+           uiddictionary[iii].append(databaseinfo[idtest]['uid'] )
+           cvtestcmd = "python ./applymodel.py --predictimage=$< --modelpath=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
+           fileHandle.write('%s: \n' % (setuptarget  ) )
+           fileHandle.write('\tmkdir -p   $(@D)          \n'                  )
+           fileHandle.write('\tln -snf %s $(@D)/image.nii\n' % imageprereq    )
+           fileHandle.write('\tln -snf %s $(@D)/label.nii\n' % labelprereq    )
+           fileHandle.write('\tln -snf %s $(@D)/tumormodelunet.json\n' % modelprereq  )
+
+  # build job list
+  with open(makefileoutput , 'r') as original: datastream = original.read()
+  with open(makefileoutput , 'w') as modified:
      modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
      for idkey in uiddictionary.keys():
         modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))
