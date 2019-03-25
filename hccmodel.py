@@ -827,6 +827,7 @@ elif (options.setupcrctestset):
         (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
         uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,trainingsolverid,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
+        modelweights   = '%s/tumormodelunet.h5' % uidoutputdir
         fileHandle.write('%s: \n' % modelprereq  )
         fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --trainingsolver=%s --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,trainingsolverid,iii,options.kfolds))
         modeltargetlist.append(modelprereq    )
@@ -842,7 +843,8 @@ elif (options.setupcrctestset):
            fileHandle.write('\tmkdir -p   $(@D)          \n'                  )
            fileHandle.write('\tln -snf %s $(@D)/image.nii\n' % imageprereq    )
            fileHandle.write('\tln -snf %s $(@D)/label.nii\n' % labelprereq    )
-           fileHandle.write('\tln -snf %s $(@D)/tumormodelunet.json\n' % modelprereq  )
+           fileHandle.write('\tln -snf ../../../%s $(@D)/tumormodelunet.json\n' % modelprereq  )
+           fileHandle.write('\tln -snf ../../../%s $(@D)/tumormodelunet.h5\n' % modelweights  )
 
   # build job list
   with open(makefileoutput , 'r') as original: datastream = original.read()

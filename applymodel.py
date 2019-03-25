@@ -21,9 +21,6 @@ parser.add_option( "--modelzoo",
 parser.add_option( "--modelpath",
                   action="store", dest="modelpath", default=None,
                   help="model location", metavar="Path")
-parser.add_option( "--livermodel",
-                  action="store_true", dest="livermodel", default=False,
-                  help="use liver mask model", metavar="FILE")
 parser.add_option( "--crcmodel",
                   action="store_true", dest="crcmodel", default=False,
                   help="use crc model", metavar="FILE")
