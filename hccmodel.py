@@ -402,7 +402,9 @@ elif (options.traintumor):
      tumorvolumes= np.zeros(len(y_train[:]) )
      for iii in range( len(y_train[:]) ):
         tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
+     nonzerovolume = list(x for x in tumorvolumes if x > 0.)
      myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
+     nonzeroweight = list(x for x in myweights if x > 0.)
      print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
   elif (options.sampleweight == None ):
      print('no sample weights')
