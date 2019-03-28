@@ -388,29 +388,33 @@ elif (options.traintumor):
   VALIDATION_SLICES    = slice(slicesplit,totnslice)
 
 
-  if (options.sampleweight == 'volume'):
-     from scipy import ndimage
-     tumorvolumes= np.zeros(len(y_train[:]) )
-     for iii in range( len(y_train[:]) ):
-        tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
-     nonzerovolume = list(x for x in tumorvolumes if x > 0.)
-     myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None)
-     nonzeroweight = list(x for x in myweights if x > 0.)
-     print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
-  elif (options.sampleweight == 'volumeshift'):
-     from scipy import ndimage
-     tumorvolumes= np.zeros(len(y_train[:]) )
-     for iii in range( len(y_train[:]) ):
-        tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
-     nonzerovolume = list(x for x in tumorvolumes if x > 0.)
-     myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
-     nonzeroweight = list(x for x in myweights if x > 0.)
-     print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
-  elif (options.sampleweight == None ):
+  if (options.sampleweight == None ):
      print('no sample weights')
      myweights = None
   else:
-     raise('unknown weight')
+     from scipy import ndimage
+     tumorvolumes= np.zeros(len(y_train[:]) )
+     for iii in range( len(y_train[:]) ):
+        tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
+     nonzerovolume = list(x for x in tumorvolumes if x > 0.)
+     if (options.sampleweight == 'volume'):
+        myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None)
+        nonzeroweight = list(x for x in myweights if x > 0.)
+        print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+     elif (options.sampleweight == 'volumeshift'):
+        myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
+        nonzeroweight = list(x for x in myweights if x > 0.)
+        print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+     elif (options.sampleweight == 'volumehi'):
+        myweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None)
+        nonzeroweight = list(x for x in myweights if x > 0.)
+        print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+     elif (options.sampleweight == 'volumeshifthi'):
+        myweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None) + 1.
+        nonzeroweight = list(x for x in myweights if x > 0.)
+        print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+     else:
+        raise('unknown weight')
       
   # import nibabel as nib  
   # print ( "writing training data for reference " ) 
@@ -799,7 +803,7 @@ elif (options.traintumor):
   history = model.fit(x_train_vector[TRAINING_SLICES ,:,:,:],
                       y_train_one_hot[TRAINING_SLICES ],
                       validation_data=(x_train_vector[VALIDATION_SLICES,:,:,:],y_train_one_hot[VALIDATION_SLICES]),
-                      callbacks = [tensorboard,callbacksave], sample_weight=myweights,
+                      callbacks = [tensorboard,callbacksave], sample_weight=myweights[TRAINING_SLICES ],
                       batch_size=options.trainingbatch, epochs=options.numepochs)
                       #batch_size=10, epochs=300
   
