@@ -22,9 +22,9 @@ $(WORKDIR)/%/tumor.nii.gz: $(WORKDIR)/%/image.nii $(WORKDIR)/%/mask.nii.gz $(WOR
 	python ./applymodel.py --predictimage=$< --modelpath=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@
 
 ## intensity statistics
-qastats/%/lstat.csv: 
+$(WORKDIR)/%/lstat.csv: 
 	mkdir -p $(@D)
-	$(C3DEXE) $(WORKDIR)/$*/Ven.raw.nii.gz  $(DATADIR)/$*/TruthVen1.nii.gz -lstat > $(@D)/lstat.txt &&  sed "s/^\s\+/$(subst /,\/,$*),TruthVen1.nii.gz,Ven.raw.nii.gz,/g;s/\s\+/,/g;s/LabelID/InstanceUID,SegmentationID,FeatureID,LabelID/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" $(@D)/lstat.txt > $@
+	$(C3DEXE) $(WORKDIR)/$*/image.nii  $(WORKDIR)/$*/label.nii -lstat > $(@D)/lstat.txt &&  sed "s/^\s\+/$(subst /,\/,$*),TruthVen1.nii.gz,Ven.raw.nii.gz,/g;s/\s\+/,/g;s/LabelID/InstanceUID,SegmentationID,FeatureID,LabelID/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" $(@D)/lstat.txt > $@
 
 qastats/%/lstat.sql: qastats/%/lstat.csv
 	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"

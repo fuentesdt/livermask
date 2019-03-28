@@ -53,6 +53,9 @@ parser.add_option( "--trainingmodel",
 parser.add_option( "--trainingloss",
                   action="store", dest="trainingloss", default='dscimg',
                   help="setup info", metavar="string")
+parser.add_option( "--sampleweight",
+                  action="store", dest="sampleweight", default=None,
+                  help="setup info", metavar="string")
 parser.add_option( "--trainingsolver",
                   action="store", dest="trainingsolver", default='adadelta',
                   help="setup info", metavar="string")
@@ -384,6 +387,29 @@ elif (options.traintumor):
   TRAINING_SLICES      = slice(0,slicesplit)
   VALIDATION_SLICES    = slice(slicesplit,totnslice)
 
+
+  if (options.sampleweight == 'volume'):
+     from scipy import ndimage
+     tumorvolumes= np.zeros(len(y_train[:]) )
+     for iii in range( len(y_train[:]) ):
+        tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
+     nonzerovolume = list(x for x in tumorvolumes if x > 0.)
+     myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None)
+     nonzeroweight = list(x for x in myweights if x > 0.)
+     print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+  elif (options.sampleweight == 'volumeshift'):
+     from scipy import ndimage
+     tumorvolumes= np.zeros(len(y_train[:]) )
+     for iii in range( len(y_train[:]) ):
+        tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
+     myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
+     print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
+  elif (options.sampleweight == None ):
+     print('no sample weights')
+     myweights = None
+  else:
+     raise('unknown weight')
+      
   # import nibabel as nib  
   # print ( "writing training data for reference " ) 
   # imgnii = nib.Nifti1Image(x_train[: ,:,:] , None )
@@ -691,7 +717,8 @@ elif (options.traintumor):
   x_train_vector[:,:,:,1]=liver
 
   # output location
-  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+  xstr = lambda s: s or ""
+  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss+ xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -770,7 +797,7 @@ elif (options.traintumor):
   history = model.fit(x_train_vector[TRAINING_SLICES ,:,:,:],
                       y_train_one_hot[TRAINING_SLICES ],
                       validation_data=(x_train_vector[VALIDATION_SLICES,:,:,:],y_train_one_hot[VALIDATION_SLICES]),
-                      callbacks = [tensorboard,callbacksave],
+                      callbacks = [tensorboard,callbacksave], sample_weight=myweights,
                       batch_size=options.trainingbatch, epochs=options.numepochs)
                       #batch_size=10, epochs=300
   
