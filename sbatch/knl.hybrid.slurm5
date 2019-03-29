@@ -48,6 +48,7 @@
 
 module load python3
 module load phdf5
+export PYTHONPATH=~/.local/lib/python3.7/site-packages:$PYTHONPATH
 module list
 pwd
 date
