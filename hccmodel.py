@@ -694,9 +694,9 @@ elif (options.traintumor):
       """
       # DSC = DSC_image1 +  DSC_image2 + DSC_image3 + ...
       intersection = 2. *K.abs(y_true * y_pred) + smooth
-      # FIXME - hard code sum over 2d image
-      sumunion = K.sum(K.square(y_true),axis=(1,2)) + K.sum(K.square(y_pred),axis=(1,2)) + smooth
-      dicevalues= K.sum(intersection / K.expand_dims(K.expand_dims(sumunion,axis=1),axis=2), axis=(0,1,2))
+      # FIXME - hard code sum over 3d image
+      sumunion = K.sum(K.square(y_true),axis=(0,1,2)) + K.sum(K.square(y_pred),axis=(0,1,2)) + smooth
+      dicevalues= K.sum(intersection / K.expand_dims(K.expand_dims(K.expand_dims(sumunion,axis=0),axis=1),axis=2), axis=(0,1,2))
       return -dicevalues
   
   def dice_metric_zero(y_true, y_pred):
