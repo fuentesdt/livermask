@@ -68,6 +68,9 @@ parser.add_option( "--trainingresample",
 parser.add_option( "--trainingbatch",
                   type="int", dest="trainingbatch", default=4,
                   help="setup info", metavar="int")
+parser.add_option( "--validationbatch",
+                  type="int", dest="validationbatch", default=40,
+                  help="setup info", metavar="int")
 parser.add_option( "--kfolds",
                   type="int", dest="kfolds", default=5,
                   help="setup info", metavar="int")
@@ -398,23 +401,24 @@ elif (options.traintumor):
         tumorvolumes[iii]= ndimage.sum(y_train[iii],y_train[iii],index=[2])
      nonzerovolume = list(x for x in tumorvolumes if x > 0.)
      if (options.sampleweight == 'volume'):
-        myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None)
-        nonzeroweight = list(x for x in myweights if x > 0.)
+        allweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None)
+        nonzeroweight = list(x for x in allweights if x > 0.)
         print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
      elif (options.sampleweight == 'volumeshift'):
-        myweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
-        nonzeroweight = list(x for x in myweights if x > 0.)
+        allweights = np.clip(1./(.01*tumorvolumes- 1.e-6),0,None) + 1.
+        nonzeroweight = list(x for x in allweights if x > 0.)
         print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
      elif (options.sampleweight == 'volumehi'):
-        myweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None)
-        nonzeroweight = list(x for x in myweights if x > 0.)
+        allweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None)
+        nonzeroweight = list(x for x in allweights if x > 0.)
         print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
      elif (options.sampleweight == 'volumeshifthi'):
-        myweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None) + 1.
-        nonzeroweight = list(x for x in myweights if x > 0.)
+        allweights = np.clip(1./(.001*tumorvolumes- 1.e-6),0,None) + 1.
+        nonzeroweight = list(x for x in allweights if x > 0.)
         print('weights min: %12.5e max %12.5e' % (min(nonzeroweight),max(nonzeroweight) ) )
      else:
         raise('unknown weight')
+     myweights = allweights[TRAINING_SLICES ]
       
   # import nibabel as nib  
   # print ( "writing training data for reference " ) 
@@ -423,6 +427,7 @@ elif (options.traintumor):
   # segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
   # segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
 
+  import keras; print("keras version: ", keras.__version__)
   from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D
   from keras.models import Model, Sequential
 
@@ -679,25 +684,39 @@ elif (options.traintumor):
       sumunion = K.sum(K.square(y_true),axis=(1,2)) + K.sum(K.square(y_pred),axis=(1,2)) + smooth
       dicevalues= K.sum(intersection / K.expand_dims(K.expand_dims(sumunion,axis=1),axis=2), axis=(1,2))
       return -dicevalues
+
+  def dice_batchloss(y_true, y_pred, smooth=0):
+      """
+      Dice = \sum_Nonehot (2*|X & Y|)/ (|X|+ |Y|)
+           = \sum_Nonehot  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
+      return negative dice value for minimization. one dsc per one hot image for each batch. Nbatch * Nonehot total images. 
+      objective function has implicit reduce mean -  /opt/apps/miniconda/miniconda3/lib/python3.6/site-packages/keras/engine/training.py(447)weighted()
+      """
+      # DSC = DSC_image1 +  DSC_image2 + DSC_image3 + ...
+      intersection = 2. *K.abs(y_true * y_pred) + smooth
+      # FIXME - hard code sum over 2d image
+      sumunion = K.sum(K.square(y_true),axis=(1,2)) + K.sum(K.square(y_pred),axis=(1,2)) + smooth
+      dicevalues= K.sum(intersection / K.expand_dims(K.expand_dims(sumunion,axis=1),axis=2), axis=(0,1,2))
+      return -dicevalues
   
   def dice_metric_zero(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,0]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[0]
   def dice_metric_one(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,1]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[1]
   def dice_metric_two(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,2]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[2]
   def dice_metric_three(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,3]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[3]
   def dice_metric_four(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,4]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[4]
   def dice_metric_five(y_true, y_pred):
-      batchdiceloss =  dice_imageloss(y_true, y_pred)
-      return -batchdiceloss[:,5]
+      batchdiceloss =  dice_batchloss(y_true, y_pred)
+      return -batchdiceloss[5]
 
   # Convert the labels into a one-hot representation
   from keras.utils.np_utils import to_categorical
@@ -800,12 +819,38 @@ elif (options.traintumor):
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
-  history = model.fit(x_train_vector[TRAINING_SLICES ,:,:,:],
-                      y_train_one_hot[TRAINING_SLICES ],
-                      validation_data=(x_train_vector[VALIDATION_SLICES,:,:,:],y_train_one_hot[VALIDATION_SLICES]),
-                      callbacks = [tensorboard,callbacksave], sample_weight=myweights[TRAINING_SLICES ],
-                      batch_size=options.trainingbatch, epochs=options.numepochs)
-                      #batch_size=10, epochs=300
+
+  from keras.preprocessing.image import ImageDataGenerator
+  # Data generator for training. Allows different workers to request batches without interfering with other workers
+  train_gen = ImageDataGenerator()
+  valid_gen = ImageDataGenerator()
+  #steps_per_epoch = (len(x_train_vector[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
+  steps_per_epoch = len(x_train_vector) // options.trainingbatch
+  train_iter = train_gen.flow(x_train_vector[TRAINING_SLICES ,:,:,:],
+                              y_train_one_hot[TRAINING_SLICES ],
+                              sample_weight=myweights[TRAINING_SLICES ],
+                              batch_size = options.trainingbatch)
+  valid_iter = valid_gen.flow(x_train_vector[VALIDATION_SLICES ,:,:,:],
+                              y_train_one_hot[VALIDATION_SLICES ], 
+                              batch_size = options.validationbatch)
+
+  # fit_generator must be used instead of model.fit for distributed training
+  history = model.fit_generator(train_iter,
+                      steps_per_epoch=steps_per_epoch,
+                      validation_data=valid_iter,
+                      callbacks = [tensorboard,callbacksave],  # Note callbacksave is disabled
+                      #workers = 1,           # More testing needs to be done to see how workers/use_multiprocessing impact horovod
+                      #use_multiprocessing = False,
+                      verbose = 1,
+                      epochs=options.numepochs)
+
+
+  ## history = model.fit(x_train_vector[TRAINING_SLICES ,:,:,:],
+  ##                     y_train_one_hot[TRAINING_SLICES ],
+  ##                     validation_data=(x_train_vector[VALIDATION_SLICES,:,:,:],y_train_one_hot[VALIDATION_SLICES]),
+  ##                     callbacks = [tensorboard,callbacksave], sample_weight=myweights[TRAINING_SLICES ],
+  ##                     batch_size=options.trainingbatch, epochs=options.numepochs)
+  ##                     #batch_size=10, epochs=300
   
 ##########################
 # apply model to test set
