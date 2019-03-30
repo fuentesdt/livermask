@@ -826,6 +826,14 @@ elif (options.traintumor):
   valid_gen = ImageDataGenerator()
   #steps_per_epoch = (len(x_train_vector[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
   steps_per_epoch = len(x_train_vector) // options.trainingbatch
+  ## config file for image processor
+  ## $ cat ~/.keras/keras.json 
+  ## {
+  ##     "floatx": "float32",
+  ##     "epsilon": 1e-07,
+  ##     "backend": "tensorflow",
+  ##     "image_data_format": "channels_first"
+  ## }
   train_iter = train_gen.flow(x_train_vector[TRAINING_SLICES ,:,:,:],
                               y_train_one_hot[TRAINING_SLICES ],
                               sample_weight=myweights[TRAINING_SLICES ],
