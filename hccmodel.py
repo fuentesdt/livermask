@@ -673,9 +673,9 @@ elif (options.traintumor):
   #  NOTE - will get different values if you compute the dsc over the whole image without breaking into batches.
   def dice_imageloss(y_true, y_pred, smooth=0):
       """
-      Dice = \sum_Nbatch \sum_Nonehot (2*|X & Y|)/ (|X|+ |Y|)
-           = \sum_Nbatch \sum_Nonehot  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
-      return negative dice value for minimization. one dsc per one hot image for each batch. Nbatch * Nonehot total images. 
+      Dice = 1/Nbatch * \sum_Nbatch (2*|X & Y|)/ (|X|+ |Y|)
+           = 1/Nbatch * \sum_Nbatch  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
+      return negative dice value for minimization. average dsc over the batch per one hot image. Nbatch * Nonehot total images. 
       objective function has implicit reduce mean -  /opt/apps/miniconda/miniconda3/lib/python3.6/site-packages/keras/engine/training.py(447)weighted()
       """
       # DSC = DSC_image1 +  DSC_image2 + DSC_image3 + ...
@@ -687,10 +687,10 @@ elif (options.traintumor):
 
   def dice_batchloss(y_true, y_pred, smooth=0):
       """
-      Dice = \sum_Nonehot (2*|X & Y|)/ (|X|+ |Y|)
-           = \sum_Nonehot  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
-      return negative dice value for minimization. one dsc per one hot image for each batch. Nbatch * Nonehot total images. 
-      objective function has implicit reduce mean -  /opt/apps/miniconda/miniconda3/lib/python3.6/site-packages/keras/engine/training.py(447)weighted()
+      Dice = (2*|X & Y|)/ (|X|+ |Y|)
+           =  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
+      return negative dice value for minimization. one dsc per one hot image. each batch is treated as a 3d image for the DSC calculation for each one hot image
+      objective function has implicit reduce mean that does not affect the scalar value per one hot -  /opt/apps/miniconda/miniconda3/lib/python3.6/site-packages/keras/engine/training.py(447)weighted()
       """
       # DSC = DSC_image1 +  DSC_image2 + DSC_image3 + ...
       intersection = 2. *K.abs(y_true * y_pred) + smooth
