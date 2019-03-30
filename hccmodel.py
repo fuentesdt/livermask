@@ -743,7 +743,7 @@ elif (options.traintumor):
 
   # output location
   xstr = lambda s: s or ""
-  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss+ xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,options.idfold)
+  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d%03d/%03d/%03d' % (options.databaseid,options.trainingloss+ xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
