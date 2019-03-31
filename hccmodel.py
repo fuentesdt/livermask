@@ -692,6 +692,12 @@ elif (options.traintumor):
       # FIXME - hard code two labels
       return K.dot(batchdiceloss,K.variable([[.1,0.,0.],[0.,.1,0.],[0.,0.,1.]]) )
 
+  def dice_hiweightloss(y_true, y_pred, smooth=0):
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      # increase weight on tumor
+      # FIXME - hard code two labels
+      return K.dot(batchdiceloss,K.variable([[.01,0.,0.],[0.,.01,0.],[0.,0.,1.]]) )
+
   def dice_batchloss(y_true, y_pred, smooth=0):
       """
       Dice = (2*|X & Y|)/ (|X|+ |Y|)
@@ -831,7 +837,7 @@ elif (options.traintumor):
   modeldict = {'half': get_batchnorm_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),'full': get_bnormfull_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
   model = modeldict[options.trainingmodel] 
 
-  lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss}
+  lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss,'dscwgthi': dice_hiweightloss}
   # FIXME - dice applied to each class separately, and weight each class
   # 
   # ojective function is summed
