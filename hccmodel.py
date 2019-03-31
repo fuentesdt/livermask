@@ -667,7 +667,8 @@ elif (options.traintumor):
   #  kimagesum    =    K.sum(kxx , axis = (1,2)) 
   #  zzz = xxx / imagesum[:,np.newaxis,np.newaxis,:] 
   #  kzz = kxx / K.expand_dims(K.expand_dims(kimagesum,axis=1),axis=2)
-  #  
+  #  K.eval(K.dot(kimagesum,K.variable([[.1,0.,0.,0.],[0.,.1,0.,0.],[0.,0.,.1,0.],[0.,0.,0., 1]]) ))
+
   #  NOTE - dice similarity and average are NOT commutative - DSC(AVG) .NE. AVG(DSC)
   #  NOTE - to get the same DSC values in c3d you need to break up the image in batches and compute the dsc for each batch and then average the dsc values per batch.
   #  NOTE - will get different values if you compute the dsc over the whole image without breaking into batches.
@@ -685,6 +686,12 @@ elif (options.traintumor):
       dicevalues= K.sum(intersection / K.expand_dims(K.expand_dims(sumunion,axis=1),axis=2), axis=(1,2))
       return -dicevalues
 
+  def dice_weightloss(y_true, y_pred, smooth=0):
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      # increase weight on tumor
+      # FIXME - hard code two labels
+      return K.dot(batchdiceloss,K.variable([[.1,0.,0.],[0.,.1,0.],[0.,0.,1.]]) )
+
   def dice_batchloss(y_true, y_pred, smooth=0):
       """
       Dice = (2*|X & Y|)/ (|X|+ |Y|)
@@ -700,23 +707,41 @@ elif (options.traintumor):
       return -dicevalues
   
   def dice_metric_zero(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[0]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,0]
   def dice_metric_one(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[1]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,1]
   def dice_metric_two(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[2]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,2]
   def dice_metric_three(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[3]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,3]
   def dice_metric_four(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[4]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,4]
   def dice_metric_five(y_true, y_pred):
-      batchdiceloss =  dice_batchloss(y_true, y_pred)
-      return -batchdiceloss[5]
+      batchdiceloss =  dice_imageloss(y_true, y_pred)
+      return -batchdiceloss[:,5]
+  def dice_volume_zero(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[0]
+  def dice_volume_one(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[1]
+  def dice_volume_two(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[2]
+  def dice_volume_three(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[3]
+  def dice_volume_four(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[4]
+  def dice_volume_five(y_true, y_pred):
+      voldiceloss =  dice_batchloss(y_true, y_pred)
+      return -voldiceloss[5]
 
   # Convert the labels into a one-hot representation
   from keras.utils.np_utils import to_categorical
@@ -806,7 +831,7 @@ elif (options.traintumor):
   modeldict = {'half': get_batchnorm_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),'full': get_bnormfull_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
   model = modeldict[options.trainingmodel] 
 
-  lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss}
+  lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss}
   # FIXME - dice applied to each class separately, and weight each class
   # 
   # ojective function is summed
@@ -815,7 +840,8 @@ elif (options.traintumor):
   #             def weighted(y_true, y_pred, weights, mask=None):
   #model.compile(loss='categorical_crossentropy',optimizer='adadelta')
   metricsList=[dice_metric_zero,dice_metric_one,dice_metric_two,dice_metric_three,dice_metric_four,dice_metric_five]
-  model.compile(loss=lossdict[options.trainingloss],metrics=metricsList[:(t_max+1)],optimizer=options.trainingsolver)
+  volumesList=[dice_volume_zero,dice_volume_one,dice_volume_two,dice_volume_three,dice_volume_four,dice_volume_five]
+  model.compile(loss=lossdict[options.trainingloss],metrics=metricsList[:(t_max+1)]+volumesList[:(t_max+1)],optimizer=options.trainingsolver)
   print("Model parameters: {0:,}".format(model.count_params()))
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
