@@ -69,7 +69,7 @@ parser.add_option( "--trainingbatch",
                   type="int", dest="trainingbatch", default=4,
                   help="setup info", metavar="int")
 parser.add_option( "--validationbatch",
-                  type="int", dest="validationbatch", default=40,
+                  type="int", dest="validationbatch", default=20,
                   help="setup info", metavar="int")
 parser.add_option( "--kfolds",
                   type="int", dest="kfolds", default=5,
@@ -93,7 +93,8 @@ options.sqlitefile = options.dbfile.replace('.csv','.sqlite' )
 options.globalnpfile = options.dbfile.replace('.csv','%d.npy' % options.trainingresample )
 _globalexpectedpixel=512
 print('database file: %s sqlfile: %s dbfile: %s rootlocation: %s' % (options.globalnpfile,options.sqlitefile,options.dbfile, options.rootlocation ) )
-  
+_globaldirectorytemplate = './%slog/%s/%s/%s/%d/%s/%03d%03d/%03d/%03d'
+_xstr = lambda s: s or ""
 
 # build data base from CSV file
 def GetDataDictionary():
@@ -773,8 +774,7 @@ elif (options.traintumor):
   x_train_vector[:,:,:,1]=liver
 
   # output location
-  xstr = lambda s: s or ""
-  logfileoutputdir= './%slog/%s/%s/%s/%d/%s/%03d%03d/%03d/%03d' % (options.databaseid,options.trainingloss+ xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,options.idfold)
+  logfileoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,options.idfold)
 
   print(logfileoutputdir)
   # ensure directory exists
@@ -904,7 +904,7 @@ elif (options.setuptestset):
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds) ,'w') as fileHandle:
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
-      uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+      uidoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
       fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,iii,options.kfolds))
@@ -943,7 +943,7 @@ elif (options.setupcrctestset):
     for trainingsolverid in trainingsolverList:
       for iii in range(options.kfolds):
         (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
-        uidoutputdir= './%slog/%s/%s/%s/%d/%s/%03d/%03d/%03d' % (options.databaseid,options.trainingloss,options.trainingmodel,trainingsolverid,options.trainingresample,options.trainingid,options.trainingbatch,options.kfolds,iii)
+        uidoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,trainingsolverid      ,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,iii)
         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
         modelweights   = '%s/tumormodelunet.h5' % uidoutputdir
         fileHandle.write('%s: \n' % modelprereq  )
