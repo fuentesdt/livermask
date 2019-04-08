@@ -868,7 +868,7 @@ elif (options.traintumor):
   ## }
   train_iter = train_gen.flow(x_train_vector[TRAINING_SLICES ,:,:,:],
                               y_train_one_hot[TRAINING_SLICES ],
-                              sample_weight=myweights[TRAINING_SLICES ],
+                              sample_weight=myweights,
                               batch_size = options.trainingbatch)
   valid_iter = valid_gen.flow(x_train_vector[VALIDATION_SLICES ,:,:,:],
                               y_train_one_hot[VALIDATION_SLICES ], 
