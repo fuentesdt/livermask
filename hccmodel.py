@@ -764,10 +764,12 @@ elif (options.traintumor):
   # FIXME - HACK - data nuances
   if( options.databaseid == 'hcc'):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  elif( options.databaseid == 'hccnorm'):
+    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'crc'):
     liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   else:
-    raise("uknown  dataset")
+    raise("unknown  dataset")
   y_train_one_hot[:,:,:,1]=liver
   
   # vectorize input assume that liver mask is given
