@@ -1,9 +1,11 @@
 SHELL := /bin/bash
 ROOTDIR=/rsrch1/ip/dtfuentes/github/livermask
--include $(ROOTDIR)/hcckfold005.makefile
+#-include $(ROOTDIR)/hcckfold005.makefile
+-include $(ROOTDIR)/hccnormkfold005.makefile
 WORKDIR=$(TRAININGROOT)/ImageDatabase
 DATADIR=$(TRAININGROOT)/datalocation/train
 mask:        $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
+normalize:   $(addprefix $(WORKDIR)/,$(addsuffix /Ven.normalize.nii.gz,$(UIDLIST)))
 labels:      $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumor.nii.gz,$(UIDLIST)))
 labelsmrf:   $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumormrf.nii.gz,$(UIDLIST)))
 labelsmedian:$(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumormedian.nii.gz,$(UIDLIST)))
@@ -26,6 +28,9 @@ qastats/%/lstat.csv:
 
 qastats/%/lstat.sql: qastats/%/lstat.csv
 	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"
+
+$(WORKDIR)/%/Ven.normalize.nii.gz:
+	python ./tissuenormalization.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
 
 $(WORKDIR)/%/unethcc/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@
