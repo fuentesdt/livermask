@@ -18,6 +18,16 @@ python hccmodel.py --databaseid=hcc --traintumor --idfold=3 --kfolds=5 --numepoc
 python hccmodel.py --databaseid=hcc --traintumor --idfold=4 --kfolds=5 --numepochs=100
 python hccmodel.py --databaseid=hcc --setuptestset
 
+python hccmodel.py --databaseid=hccnorm --initialize
+python hccmodel.py --databaseid=hccnorm --builddb
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=0 --kfolds=1 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=0 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=1 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=2 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=3 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --traintumor --idfold=4 --kfolds=5 --numepochs=100
+python hccmodel.py --databaseid=hccnorm --setuptestset
+
 python hccmodel.py --databaseid=crc --initialize
 python hccmodel.py --databaseid=crc --builddb
 python hccmodel.py --databaseid=crc --traintumor --idfold=0 --kfolds=1 --numepochs=100

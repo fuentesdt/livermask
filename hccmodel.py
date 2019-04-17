@@ -66,7 +66,7 @@ parser.add_option( "--trainingresample",
                   type="int", dest="trainingresample", default=256,
                   help="setup info", metavar="int")
 parser.add_option( "--trainingbatch",
-                  type="int", dest="trainingbatch", default=4,
+                  type="int", dest="trainingbatch", default=5,
                   help="setup info", metavar="int")
 parser.add_option( "--validationbatch",
                   type="int", dest="validationbatch", default=20,
@@ -84,6 +84,7 @@ parser.add_option("--numepochs",
 
 # current datasets
 trainingdictionary = {'hcc':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
+                      'hccnorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingnorm.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'crc':{'dbfile':'./crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
 
 # options dependency 

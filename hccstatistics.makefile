@@ -3,13 +3,14 @@ ROOTDIR=/rsrch1/ip/dtfuentes/github/livermask
 -include $(ROOTDIR)/hcckfold005.makefile
 WORKDIR=$(TRAININGROOT)/ImageDatabase
 DATADIR=$(TRAININGROOT)/datalocation/train
-mask:       $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
-labels:     $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumor.nii.gz,$(UIDLIST)))
-mrf:        $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumormrf.nii.gz,$(UIDLIST)))
-lstat:      $(addprefix    qastats/,$(addsuffix /lstat.sql,$(UIDLIST)))
-overlap:    $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/overlap.sql,$(UIDLIST)))
-overlapmrf: $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/overlapmrf.sql,$(UIDLIST)))
-reviewsoln: $(addprefix $(WORKDIR)/,$(addsuffix /reviewsoln,$(UIDLIST)))
+mask:        $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
+labels:      $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumor.nii.gz,$(UIDLIST)))
+labelsmrf:   $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumormrf.nii.gz,$(UIDLIST)))
+labelsmedian:$(addprefix $(WORKDIR)/,$(addsuffix /unethcc/tumormedian.nii.gz,$(UIDLIST)))
+lstat:       $(addprefix    qastats/,$(addsuffix /lstat.sql,$(UIDLIST)))
+overlap:     $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/overlap.sql,$(UIDLIST)))
+overlappost: $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/overlapmrf.sql,$(UIDLIST))) $(addprefix $(WORKDIR)/,$(addsuffix /unethcc/overlapmedian.sql,$(UIDLIST)))
+reviewsoln:  $(addprefix $(WORKDIR)/,$(addsuffix /reviewsoln,$(UIDLIST)))
 C3DEXE=/rsrch2/ip/dtfuentes/bin/c3d
 # keep tmp files
 .SECONDARY: 
@@ -28,6 +29,9 @@ qastats/%/lstat.sql: qastats/%/lstat.csv
 
 $(WORKDIR)/%/unethcc/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@
+
+$(WORKDIR)/%/unethcc/tumormedian.nii.gz:
+	c3d -verbose $(@D)/tumor.nii.gz -median 1x1x1 -o $@
 
 $(WORKDIR)/%/unethcc/overlapmrf.csv: $(WORKDIR)/%/unethcc/tumormrf.nii.gz
 	$(C3DEXE) $(DATADIR)/$*/TruthVen1.nii.gz  -as A $< -as B -overlap 1 -overlap 2 -overlap 3 -overlap 4  -overlap 5  > $(@D)/overlap.txt
