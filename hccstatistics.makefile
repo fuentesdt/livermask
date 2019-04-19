@@ -30,7 +30,7 @@ qastats/%/lstat.sql: qastats/%/lstat.csv
 	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"
 
 $(WORKDIR)/%/Ven.normalize.nii.gz:
-	python ./tissuenormalization.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
+	python ./tissueshift.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
 
 $(WORKDIR)/%/unethcc/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@
