@@ -8,35 +8,30 @@ If on TACC, use `ibrun python3 ./liver.py [options]` to use all currently alloca
 
 Usage
 =====
+python hccmodel.py --databaseid=hccvol --initialize
+python hccmodel.py --databaseid=hccvol --setuptestset
+python hccmodel.py --databaseid=hccvol --builddb
+make -f hccstatistics.makefile models
+make -f hccstatistics.makefile labels
+
 python hccmodel.py --databaseid=hcc --initialize
 python hccmodel.py --databaseid=hcc --setuptestset
 python hccmodel.py --databaseid=hcc --builddb
-python hccmodel.py --databaseid=hcc --traintumor --idfold=0 --kfolds=1 --numepochs=100
-python hccmodel.py --databaseid=hcc --traintumor --idfold=0 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hcc --traintumor --idfold=1 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hcc --traintumor --idfold=2 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hcc --traintumor --idfold=3 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hcc --traintumor --idfold=4 --kfolds=5 --numepochs=100
+make -f hccstatistics.makefile models
+make -f hccstatistics.makefile labels
 
 python hccmodel.py --databaseid=hccnorm --initialize
 python hccmodel.py --databaseid=hccnorm --setuptestset
 python hccmodel.py --databaseid=hccnorm --builddb
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=0 --kfolds=1 --numepochs=100
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=0 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=1 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=2 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=3 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=hccnorm --traintumor --idfold=4 --kfolds=5 --numepochs=100
+make -f hccstatistics.makefile models
+make -f hccstatistics.makefile labels
 
 python hccmodel.py --databaseid=crc --initialize
 python hccmodel.py --databaseid=crc --setupcrctestset
 python hccmodel.py --databaseid=crc --builddb
-python hccmodel.py --databaseid=crc --traintumor --idfold=0 --kfolds=1 --numepochs=100
-python hccmodel.py --databaseid=crc --traintumor --idfold=0 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=crc --traintumor --idfold=1 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=crc --traintumor --idfold=2 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=crc --traintumor --idfold=3 --kfolds=5 --numepochs=100
-python hccmodel.py --databaseid=crc --traintumor --idfold=4 --kfolds=5 --numepochs=100
+make -f crcstatistics.makefile models
+make -f crcstatistics.makefile labels
+
 python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
 
 Unet code adapted from SPIE Tutorial

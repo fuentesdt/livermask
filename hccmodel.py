@@ -85,6 +85,7 @@ parser.add_option("--numepochs",
 # current datasets
 trainingdictionary = {'hcc':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'hccnorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingnorm.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
+                      'hccvol':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumordata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'crc':{'dbfile':'./crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
 
 # options dependency 
@@ -766,6 +767,8 @@ elif (options.traintumor):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'hccnorm'):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  elif( options.databaseid == 'hccvol'):
+    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'crc'):
     liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   else:
@@ -917,7 +920,7 @@ elif (options.setuptestset):
          # write target
          imageprereq    = '$(TRAININGROOT)/%s' % databaseinfo[idtest]['image']
          maskprereq     = '$(TRAININGROOT)/ImageDatabase/%s/unet/mask.nii.gz' % databaseinfo[idtest]['uid']
-         segmaketarget = '$(TRAININGROOT)/ImageDatabase/%s/unethcc/tumor.nii.gz' % databaseinfo[idtest]['uid']
+         segmaketarget = '$(TRAININGROOT)/ImageDatabase/%s/unet%s/tumor.nii.gz' % (databaseinfo[idtest]['uid'], options.databaseid )
          uiddictionary[iii].append(databaseinfo[idtest]['uid'] )
          cvtestcmd = "python ./applymodel.py --predictimage=$< --modelpath=$(word 3, $^) --maskimage=$(word 2, $^) --segmentation=$@"  
          fileHandle.write('%s: %s %s %s\n' % (segmaketarget ,imageprereq,maskprereq,    modelprereq  ) )
@@ -926,7 +929,7 @@ elif (options.setuptestset):
   # build job list
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'r') as original: datastream = original.read()
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'w') as modified:
-     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
+     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation +'DATABASEID=%s\n' % options.databaseid + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
      for idkey in uiddictionary.keys():
         modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))
      modified.write("UIDLIST=%s \n" % " ".join(map(lambda x : "$(UIDLIST%d)" % x, uiddictionary.keys()))    +datastream)
