@@ -86,6 +86,7 @@ parser.add_option("--numepochs",
 trainingdictionary = {'hcc':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingdata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'hccnorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/trainingnorm.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'hccvol':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumordata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
+                      'hccvolnorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumornorm.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'crc':{'dbfile':'./crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
 
 # options dependency 
@@ -768,6 +769,8 @@ elif (options.traintumor):
   elif( options.databaseid == 'hccnorm'):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'hccvol'):
+    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  elif( options.databaseid == 'hccvolnorm'):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'crc'):
     liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)

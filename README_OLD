@@ -14,6 +14,12 @@ python hccmodel.py --databaseid=hccvol --builddb
 make -f hccstatistics.makefile models
 make -f hccstatistics.makefile labels
 
+python hccmodel.py --databaseid=hccvolnorm --initialize
+python hccmodel.py --databaseid=hccvolnorm --setuptestset
+python hccmodel.py --databaseid=hccvolnorm --builddb
+make -f hccstatistics.makefile models
+make -f hccstatistics.makefile labels
+
 python hccmodel.py --databaseid=hcc --initialize
 python hccmodel.py --databaseid=hcc --setuptestset
 python hccmodel.py --databaseid=hcc --builddb
