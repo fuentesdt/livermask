@@ -932,7 +932,7 @@ elif (options.setuptestset):
   # build job list
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'r') as original: datastream = original.read()
   with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'w') as modified:
-     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation +'DATABASEID=%s\n' % options.databaseid + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
+     modified.write( 'TRAININGROOT=%s\n' % options.rootlocation +'DATABASEID=unet%s\n' % options.databaseid + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
      for idkey in uiddictionary.keys():
         modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))
      modified.write("UIDLIST=%s \n" % " ".join(map(lambda x : "$(UIDLIST%d)" % x, uiddictionary.keys()))    +datastream)
