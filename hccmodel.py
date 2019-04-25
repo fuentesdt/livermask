@@ -909,14 +909,16 @@ elif (options.setuptestset):
 
   uiddictionary = {}
   modeltargetlist = []
+
+  makefilename = '%s%dkfold%03d.makefile' % (options.databaseid,options.trainingresample,options.kfolds) 
   # open makefile
-  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds) ,'w') as fileHandle:
+  with open(makefilename ,'w') as fileHandle:
     for iii in range(options.kfolds):
       (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
       uidoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
-      fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,iii,options.kfolds))
+      fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --idfold=%d --kfolds=%d --trainingresample=%d --numepochs=50\n' % (options.databaseid,iii,options.kfolds,options.trainingresample))
       modeltargetlist.append(modelprereq    )
       uiddictionary[iii]=[]
       for idtest in test_set:
@@ -930,8 +932,8 @@ elif (options.setuptestset):
          fileHandle.write('\t%s\n' % cvtestcmd)
 
   # build job list
-  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'r') as original: datastream = original.read()
-  with open('%skfold%03d.makefile' % (options.databaseid,options.kfolds), 'w') as modified:
+  with open(makefilename , 'r') as original: datastream = original.read()
+  with open(makefilename , 'w') as modified:
      modified.write( 'TRAININGROOT=%s\n' % options.rootlocation +'DATABASEID=unet%s\n' % options.databaseid + 'SQLITEDB=%s\n' % options.sqlitefile + "models: %s \n" % ' '.join(modeltargetlist))
      for idkey in uiddictionary.keys():
         modified.write("UIDLIST%d=%s \n" % (idkey,' '.join(uiddictionary[idkey])))

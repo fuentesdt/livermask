@@ -3,7 +3,8 @@ ROOTDIR=/rsrch1/ip/dtfuentes/github/livermask
 #-include $(ROOTDIR)/hcckfold005.makefile
 #-include $(ROOTDIR)/hccnormkfold005.makefile
 #-include $(ROOTDIR)/hccvolkfold005.makefile
--include $(ROOTDIR)/hccvolnormkfold005.makefile
+#-include $(ROOTDIR)/hccvolnorm512kfold005.makefile
+-include $(ROOTDIR)/hccvolnorm256kfold005.makefile
 WORKDIR=$(TRAININGROOT)/ImageDatabase
 DATADIR=$(TRAININGROOT)/datalocation/train
 mask:        $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
