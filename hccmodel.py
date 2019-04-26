@@ -573,6 +573,77 @@ elif (options.traintumor):
       model = Model(inputs=input_layer, outputs=output_layer)
       return model
   
+  def get_bnormover_unet_vector(_filters=32, _filters_add=0, _kernel_size=(3,3), _padding='same', _activation='prelu', _kernel_regularizer=None, _final_layer_nonlinearity='sigmoid', _batch_norm=True, _num_classes=1):
+      # FIXME - HACK image size
+      crop_size = options.trainingresample
+      if _padding == 'valid':
+          input_layer = Input(shape=(crop_size+40,crop_size+40,2))
+      elif _padding == 'same':
+          input_layer = Input(shape=(crop_size,crop_size,2))
+  
+      x0 = addConvBNSequential(input_layer, filters=_filters, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x0 = addConvBNSequential(x0,          filters=_filters, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x1 = MaxPool2D()(x0)
+      
+      x1 = addConvBNSequential(x1,         filters =_filters+_filters_add, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x1 = addConvBNSequential(x1,         filters =_filters+_filters_add, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x2 = MaxPool2D()(x1)
+      
+      x2 = addConvBNSequential(x2,         filters =2*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x2 = addConvBNSequential(x2,         filters =2*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x3 = MaxPool2D()(x2)
+      
+      x3 = addConvBNSequential(x3,         filters =4*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x3 = addConvBNSequential(x3,         filters =4*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x4 = MaxPool2D()(x3)
+      
+      x4 = addConvBNSequential(x4,         filters =8*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x4 = addConvBNSequential(x4,         filters =8*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x5 = MaxPool2D()(x4)
+      
+      x5 = addConvBNSequential(x5,         filters=16*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x5 = addConvBNSequential(x5,         filters=16*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x6 = MaxPool2D()(x5)
+      
+      x6 = addConvBNSequential(x6,         filters=32*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x6 = addConvBNSequential(x6,         filters=32*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm)
+      x7 = UpSampling2D()(x6)
+      
+      x7 = concatenate([x5,x7])
+      x7 = addConvBNSequential(x7,         filters=16*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x7 = addConvBNSequential(x7,         filters=16*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x8 = UpSampling2D()(x7)
+      
+      x8 = concatenate([x4,x8])
+      x8 = addConvBNSequential(x8,         filters =8*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x8 = addConvBNSequential(x8,         filters =8*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x9 = UpSampling2D()(x8)
+      
+      x9 = concatenate([x3,x9])
+      x9 = addConvBNSequential(x9,         filters =4*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x9 = addConvBNSequential(x9,         filters =4*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x10= UpSampling2D()(x9)
+      
+      x10= concatenate([x2,x10])
+      x10= addConvBNSequential(x10,        filters =2*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x10= addConvBNSequential(x10,        filters =2*(_filters+_filters_add), kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x11= UpSampling2D()(x10)
+      
+      x11= concatenate([x1,x11])
+      x11= addConvBNSequential(x11,        filters =_filters+_filters_add, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x11= addConvBNSequential(x11,        filters =_filters+_filters_add, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x12= UpSampling2D()(x11)
+      
+      x12= concatenate([x0,x12])
+      x12= addConvBNSequential(x12,        filters =_filters, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+      x12= addConvBNSequential(x12,        filters =_filters, kernel_size=_kernel_size, padding=_padding, activation=_activation, kernel_regularizer=_kernel_regularizer, batch_norm=_batch_norm,dropout=.5)
+  
+      # FIXME - need for arbitrary output
+      output_layer = Conv2D(_num_classes, kernel_size=(1,1), activation=_final_layer_nonlinearity)(x12)
+      
+      model = Model(inputs=input_layer, outputs=output_layer)
+      return model
+  
 ## ipdb> bt
 ##  /opt/apps/miniconda/miniconda3/lib/python3.6/bdb.py(434)run()
 ##    432         sys.settrace(self.trace_dispatch)
@@ -843,7 +914,9 @@ elif (options.traintumor):
   callbacksave = MyHistories()
 
   # dictionary of models to evaluate
-  modeldict = {'half': get_batchnorm_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),'full': get_bnormfull_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
+  modeldict = {'half': get_batchnorm_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),
+               'full': get_bnormfull_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),
+               'over': get_bnormover_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
   model = modeldict[options.trainingmodel] 
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss,'dscwgthi': dice_hiweightloss}
