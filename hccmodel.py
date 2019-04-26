@@ -112,11 +112,9 @@ def GetDataDictionary():
   return CSVDictionary 
 
 # setup kfolds
-def GetSetupKfolds(numfolds,idfold):
+def GetSetupKfolds(numfolds,idfold,dataidsfull ):
   from sklearn.model_selection import KFold
-  # get id from setupfiles
-  databaseinfo = GetDataDictionary()
-  dataidsfull = list(databaseinfo.keys()) 
+
   if (numfolds < idfold or numfolds < 1):
      raise("data input error")
   # split in folds
@@ -339,9 +337,10 @@ elif (options.traintumor):
   print('loading memory map db for large dataset')
   #numpydatabase = np.load(options.globalnpfile,mmap_mode='r')
   numpydatabase = np.load(options.globalnpfile)
+  dataidsfull= list(np.unique(numpydatabase['dataid']))
 
   #setup kfolds
-  (train_validation_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold)
+  (train_validation_index,test_index) = GetSetupKfolds(options.kfolds,options.idfold,dataidsfull)
 
   #break into independent training and validation sets
   studydict = {'run_a':.9, 'run_b':.8, 'run_c':.7 }
@@ -978,7 +977,9 @@ elif (options.traintumor):
 # apply model to test set
 ##########################
 elif (options.setuptestset):
+  # get id from setupfiles
   databaseinfo = GetDataDictionary()
+  dataidsfull = list(databaseinfo.keys()) 
 
   uiddictionary = {}
   modeltargetlist = []
@@ -987,7 +988,7 @@ elif (options.setuptestset):
   # open makefile
   with open(makefilename ,'w') as fileHandle:
     for iii in range(options.kfolds):
-      (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
+      (train_set,test_set) = GetSetupKfolds(options.kfolds,iii,dataidsfull)
       uidoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,iii)
       modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
       fileHandle.write('%s: \n' % modelprereq  )
@@ -1016,7 +1017,9 @@ elif (options.setuptestset):
 # apply model to test set
 ##########################
 elif (options.setupcrctestset):
+  # get id from setupfiles
   databaseinfo = GetDataDictionary()
+  dataidsfull = list(databaseinfo.keys()) 
 
   uiddictionary = {}
   modeltargetlist = []
@@ -1026,7 +1029,7 @@ elif (options.setupcrctestset):
   with open(makefileoutput ,'w') as fileHandle:
     for trainingsolverid in trainingsolverList:
       for iii in range(options.kfolds):
-        (train_set,test_set) = GetSetupKfolds(options.kfolds,iii)
+        (train_set,test_set) = GetSetupKfolds(options.kfolds,iii,dataidsfull)
         uidoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,trainingsolverid      ,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,iii)
         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
         modelweights   = '%s/tumormodelunet.h5' % uidoutputdir
