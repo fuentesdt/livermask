@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 # raw dicom data is usually short int (2bytes) datatype
 # labels are usually uchar (1byte)
@@ -233,7 +234,6 @@ CREATE TABLE overlap(
 if (options.initialize ):
   import sqlite3
   import pandas
-  import os
   # build new database
   os.system('rm %s'  % options.sqlitefile )
   tagsconn = sqlite3.connect(options.sqlitefile )
@@ -430,7 +430,9 @@ elif (options.traintumor):
   # segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
   # segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
 
-  import keras; print("keras version: ", keras.__version__)
+  import keras
+  import tensorflow as tf
+  print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
   from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D
   from keras.models import Model, Sequential
 
@@ -857,7 +859,6 @@ elif (options.traintumor):
 
   print(logfileoutputdir)
   # ensure directory exists
-  import os
   os.system ('mkdir -p %s' % logfileoutputdir)
 
   # tensor callbacks
@@ -916,7 +917,22 @@ elif (options.traintumor):
   modeldict = {'half': get_batchnorm_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),
                'full': get_bnormfull_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1),
                'over': get_bnormover_unet_vector(_activation='relu', _batch_norm=True,_filters=64, _filters_add=64,_num_classes=t_max+1)}
-  model = modeldict[options.trainingmodel] 
+
+  # restart if previous model available
+  modelpath  = "%s/tumormodelunet.json" % logfileoutputdir 
+  weightsfile= "%s/tumormodelunet.h5"   % logfileoutputdir 
+  if (os.path.isfile(modelpath)  and os.path.isfile(weightsfile)):
+    from keras.models import model_from_json
+    json_file = open(modelpath, 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    model = model_from_json(loaded_model_json)
+    # load weights into new model
+    model.load_weights(weightsfile)
+    print("Loaded model from disk")
+  else:
+    model = modeldict[options.trainingmodel] 
+    print("initialize new model")
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss,'dscwgthi': dice_hiweightloss}
   # FIXME - dice applied to each class separately, and weight each class
