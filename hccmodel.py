@@ -252,7 +252,7 @@ elif (options.builddb):
   import skimage.transform
 
   # create  custom data frame database type
-  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagepath','S128'),('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthpath','S128'),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
+  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
 
   # initialize empty dataframe
   numpydatabase = np.empty(0, dtype=mydatabasetype  )
@@ -315,8 +315,6 @@ elif (options.builddb):
         axialtumorbounds[tumorboundingbox[2]]       = True
       datamatrix ['axialliverbounds'   ]            = axialliverbounds
       datamatrix ['axialtumorbounds'  ]             = axialtumorbounds
-      datamatrix ['imagepath']                      = np.repeat(imagelocation ,nslice  ) 
-      datamatrix ['truthpath']                      = np.repeat(truthlocation ,nslice  ) 
       datamatrix ['imagedata']                      = resimage.transpose(2,1,0) 
       datamatrix ['truthdata']                      = restruth.transpose(2,1,0)  
       numpydatabase = np.hstack((numpydatabase,datamatrix))
