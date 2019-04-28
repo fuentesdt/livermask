@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import json
 
 # raw dicom data is usually short int (2bytes) datatype
 # labels are usually uchar (1byte)
@@ -866,8 +867,11 @@ elif (options.traintumor):
   # callback to save best model 
   from keras.callbacks import Callback as CallbackBase
   class MyHistories(CallbackBase):
-      def on_train_begin(self, logs={}):
+      def __init__(self):
           self.min_valloss = np.inf
+
+      def on_train_begin(self, logs={}):
+          return
    
       def on_train_end(self, logs={}):
           return
@@ -885,7 +889,7 @@ elif (options.traintumor):
                  json_file.write(model_json)
              # serialize weights to HDF5
              self.model.save_weights("%s/tumormodelunet.h5" % logfileoutputdir )
-             print("Saved model to disk - val_loss", self.min_valloss  )
+             print("Saved model to disk " )
 
              # output predictions
              if (options.trainingid == 'run_a'):
@@ -902,6 +906,13 @@ elif (options.traintumor):
                validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
                validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
                validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
+
+          # save state to restart
+          statedata = {'epoch':epoch, 'valloss':self.min_valloss}
+          with open('%s/state.json'% logfileoutputdir, 'w') as outfile:  
+              json.dump(statedata, outfile)
+          print("Saved state to disk - epoch %d,  val_loss %f" % ( epoch,self.min_valloss)  )
+
           return
    
       def on_batch_begin(self, batch, logs={}):
@@ -919,17 +930,23 @@ elif (options.traintumor):
   # restart if previous model available
   modelpath  = "%s/tumormodelunet.json" % logfileoutputdir 
   weightsfile= "%s/tumormodelunet.h5"   % logfileoutputdir 
-  if (os.path.isfile(modelpath)  and os.path.isfile(weightsfile)):
+  statefile  = "%s/state.json"          % logfileoutputdir 
+  if (os.path.isfile(modelpath) and os.path.isfile(weightsfile) and os.path.isfile(statefile)):
     from keras.models import model_from_json
-    json_file = open(modelpath, 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
+    with open(modelpath, 'r') as json_file:  
+      loaded_model_json = json_file.read()
     model = model_from_json(loaded_model_json)
     # load weights into new model
     model.load_weights(weightsfile)
-    print("Loaded model from disk")
+
+    # load weights into new model
+    with open(statefile, 'r') as json_state:  
+      statevars = json.load(json_state)
+    callbacksave.min_valloss = statevars['valloss'] 
+    print("Loaded model from disk epoch: %d loss: %f" % (statevars['epoch'],callbacksave.min_valloss))
   else:
     model = modeldict[options.trainingmodel] 
+    statevars = {'epoch':0, 'valloss':np.inf}
     print("initialize new model")
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss,'dscwgthi': dice_hiweightloss}
@@ -977,15 +994,9 @@ elif (options.traintumor):
                       #workers = 1,           # More testing needs to be done to see how workers/use_multiprocessing impact horovod
                       #use_multiprocessing = False,
                       verbose = 1,
+                      initial_epoch=statevars['epoch'],
                       epochs=options.numepochs)
 
-
-  ## history = model.fit(x_train_vector[TRAINING_SLICES ,:,:,:],
-  ##                     y_train_one_hot[TRAINING_SLICES ],
-  ##                     validation_data=(x_train_vector[VALIDATION_SLICES,:,:,:],y_train_one_hot[VALIDATION_SLICES]),
-  ##                     callbacks = [tensorboard,callbacksave], sample_weight=myweights[TRAINING_SLICES ],
-  ##                     batch_size=options.trainingbatch, epochs=options.numepochs)
-  ##                     #batch_size=10, epochs=300
   
 ##########################
 # apply model to test set
