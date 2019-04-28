@@ -46,9 +46,15 @@
 
 # Other commands must follow all #SBATCH directives...
 
+## module load python3
+## module load phdf5
+## export PYTHONPATH=~/.local/lib/python3.7/site-packages:$PYTHONPATH
+
+module load intel/17.0.4
 module load python3
 module load phdf5
-export PYTHONPATH=~/.local/lib/python3.7/site-packages:$PYTHONPATH
+export PYTHONPATH=~/.local/lib/python3.6/site-packages:$PYTHONPATH
+
 module list
 pwd
 date
@@ -62,4 +68,4 @@ export KMP_SETTINGS=1
 export KMP_AFFINITY=granularity=fine,verbose,compact,1,0
 
 # Launch MPI code... 
-mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./liver.py --trainmodel --idfold=0 --kfolds=1 --trainingbatch=30  --dbfile=/scratch/00131/fuentes/stampede2/github/livermask/trainingdata.csv
+mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./hccmodel.py --databaseid=hccvolnorm --traintumor --idfold=0 --kfolds=5 --numepochs=100 --trainingmodel=full --trainingbatch=20 --validationbatch=20  --trainingresample=512 
