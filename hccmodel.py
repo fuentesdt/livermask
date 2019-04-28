@@ -908,10 +908,10 @@ elif (options.traintumor):
                validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
 
           # save state to restart
-          statedata = {'epoch':epoch, 'valloss':self.min_valloss}
+          statedata = {'epoch':epoch+1, 'valloss':self.min_valloss}
           with open('%s/state.json'% logfileoutputdir, 'w') as outfile:  
               json.dump(statedata, outfile)
-          print("Saved state to disk - epoch %d,  val_loss %f" % ( epoch,self.min_valloss)  )
+          print("Saved state to disk - epoch %d,  val_loss %f" % ( statedata['epoch'],self.min_valloss)  )
 
           return
    
