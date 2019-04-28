@@ -908,11 +908,11 @@ elif (options.traintumor):
                validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
 
           # save state to restart
-          statedata = {'epoch':epoch+1, 'valloss':self.min_valloss}
+          statedata = {'epoch':epoch+1, 'valloss':self.min_valloss, 'lr':K.eval(self.model.optimizer.lr)}
           with open('%s/state.json'% logfileoutputdir, 'w') as outfile:  
               json.dump(statedata, outfile)
-          print("Saved state to disk - epoch %d,  val_loss %f" % ( statedata['epoch'],self.min_valloss)  )
-
+          print("Saved state to disk - epoch %d,  val_loss %f,  lr %f" % ( statedata['epoch'],self.min_valloss,statedata['lr'])  )
+             
           return
    
       def on_batch_begin(self, batch, logs={}):
@@ -946,7 +946,7 @@ elif (options.traintumor):
     print("Loaded model from disk epoch: %d loss: %f" % (statevars['epoch'],callbacksave.min_valloss))
   else:
     model = modeldict[options.trainingmodel] 
-    statevars = {'epoch':0, 'valloss':np.inf}
+    statevars = {'epoch':0, 'valloss':np.inf, 'lr':1.}
     print("initialize new model")
 
   lossdict = {'dscvec': dice_coef_loss,'dscimg': dice_imageloss,'dscwgt': dice_weightloss,'dscwgthi': dice_hiweightloss}
