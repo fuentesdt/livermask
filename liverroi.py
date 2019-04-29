@@ -58,11 +58,11 @@ if (options.image != None and options.gmm != None ):
     bnddiff  = roi - bndroi 
     print bnddiff 
 
-    imgbndboxcmd = 'c3d %s -region %dx%dx0vox %dx%dx%dvox -pad %dx%dx0vox %dx%dx0vox 0 -info -o %s/Ven.roi.nii.gz ' % (options.image,bndroi[0],bndroi[2],bndroi[1]-bndroi[0],bndroi[3]-bndroi[2],numpyimage.shape[2],np.abs(bnddiff[0]),np.abs(bnddiff[1]),np.abs(bnddiff[2]),np.abs(bnddiff[3]),options.outputdir )
+    imgbndboxcmd = 'c3d %s -region %dx%dx0vox %dx%dx%dvox -pad %dx%dx0vox %dx%dx0vox 0 -info -o %s/Ven.roi.nii.gz ' % (options.image,bndroi[0],bndroi[2],bndroi[1]-bndroi[0],bndroi[3]-bndroi[2],numpyimage.shape[2],np.abs(bnddiff[0]),np.abs(bnddiff[2]),np.abs(bnddiff[1]),np.abs(bnddiff[3]),options.outputdir )
     print imgbndboxcmd 
     os.system( imgbndboxcmd )
 
-    lblbndboxcmd = 'c3d %s -region %dx%dx0vox %dx%dx%dvox -pad %dx%dx0vox %dx%dx0vox 0 -info -type uchar -o %s/Truthroi.nii.gz ' % (options.gmm,bndroi[0],bndroi[2],bndroi[1]-bndroi[0],bndroi[3]-bndroi[2],numpyimage.shape[2],np.abs(bnddiff[0]),np.abs(bnddiff[1]),np.abs(bnddiff[2]),np.abs(bnddiff[3]),options.outputdir )
+    lblbndboxcmd = 'c3d %s -region %dx%dx0vox %dx%dx%dvox -pad %dx%dx0vox %dx%dx0vox 0 -info -type uchar -o %s/Truthroi.nii.gz ' % (options.gmm,bndroi[0],bndroi[2],bndroi[1]-bndroi[0],bndroi[3]-bndroi[2],numpyimage.shape[2],np.abs(bnddiff[0]),np.abs(bnddiff[2]),np.abs(bnddiff[1]),np.abs(bnddiff[3]),options.outputdir )
     print lblbndboxcmd 
     os.system( lblbndboxcmd )
 

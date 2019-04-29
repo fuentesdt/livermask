@@ -17,7 +17,7 @@ parser.add_option( "--output",
 
 
 if (options.image != None and options.gmm != None ):
-    normalizedimage = options.image.replace('Ven.raw.nii.gz','Ven.normalize.nii.gz')
+    normalizedimage = options.image.replace('Ven.roi.nii.gz','Ven.normroi.nii.gz')
     getHeaderCmd = 'c3d %s %s -lstat | sed "s/^\s\+//g;s/\s\+/,/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" ' % (options.image,options.gmm)
     print getHeaderCmd 
     try: 
@@ -35,8 +35,6 @@ if (options.image != None and options.gmm != None ):
     #     ==> y(x_csf) = y_0  
     #     ==> y(x_wm)  = y_1  
     xoffset = -labeldictionary[1]['Mean']
-    slope   = 1./(labeldictionary[5]['Mean'] - labeldictionary[1]['Mean'])
-    yoffset = 0.
     shiftcmd = 'c3d %s -shift %12.5e  -type float -o %s ' % (options.image,xoffset , normalizedimage )
     print shiftcmd 
     os.system(shiftcmd )

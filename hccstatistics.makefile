@@ -9,6 +9,7 @@ WORKDIR=$(TRAININGROOT)/ImageDatabase
 DATADIR=$(TRAININGROOT)/datalocation/train
 mask:        $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
 normalize:   $(addprefix $(WORKDIR)/,$(addsuffix /Ven.normalize.nii.gz,$(UIDLIST)))
+normroi:     $(addprefix $(WORKDIR)/,$(addsuffix /Ven.normroi.nii.gz,$(UIDLIST)))
 roi:         $(addprefix $(WORKDIR)/,$(addsuffix /Ven.roi.nii.gz,$(UIDLIST)))
 combine:     $(addprefix $(DATADIR)/,$(addsuffix /TruthVen6.nii.gz,$(UIDLIST)))
 labels:      $(addprefix $(WORKDIR)/,$(addsuffix /$(DATABASEID)/tumor.nii.gz,$(UIDLIST)))
@@ -37,11 +38,14 @@ qastats/%/lstat.sql: qastats/%/lstat.csv
 $(DATADIR)/%/TruthVen6.nii.gz:
 	c3d -verbose $(@D)/TruthVen1.nii.gz -replace 3 2 4 3 5 4 -o $@
 	
-$(WORKDIR)/%/Ven.normalize.nii.gz:
-	python ./tissueshift.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
+##$(WORKDIR)/%/Ven.normalize.nii.gz:
+##	python ./tissueshift.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
 
-$(WORKDIR)/%/Ven.roi.nii.gz: $(DATADIR)/%/TruthVen6.nii.gz
-	python ./liverroi.py --image=$(@D)/Ven.raw.nii.gz --gmm=$< --outputdir=$(@D)
+$(WORKDIR)/%/Ven.normroi.nii.gz:
+	python ./tissueshift.py --image=$(@D)/Ven.roi.nii.gz --gmm=$(@D)/Truthroi.nii.gz  
+
+$(WORKDIR)/%/Ven.roi.nii.gz: 
+	python ./liverroi.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen6.nii.gz --outputdir=$(@D)
 
 $(WORKDIR)/%/$(DATABASEID)/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@
