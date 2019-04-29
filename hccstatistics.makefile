@@ -40,8 +40,8 @@ $(DATADIR)/%/TruthVen6.nii.gz:
 $(WORKDIR)/%/Ven.normalize.nii.gz:
 	python ./tissueshift.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
 
-$(WORKDIR)/%/Ven.roi.nii.gz:
-	python ./liverroi.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
+$(WORKDIR)/%/Ven.roi.nii.gz: $(DATADIR)/%/TruthVen6.nii.gz
+	python ./liverroi.py --image=$(@D)/Ven.raw.nii.gz --gmm=$< --outputdir=$(@D)
 
 $(WORKDIR)/%/$(DATABASEID)/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@
