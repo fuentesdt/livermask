@@ -908,11 +908,12 @@ elif (options.traintumor):
                validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
 
           # save state to restart
-          statedata = {'epoch':epoch+1, 'valloss':self.min_valloss, 'lr':K.eval(self.model.optimizer.lr)}
+          statedata = {'epoch':epoch+1, 'valloss':self.min_valloss, 'lr':float(K.eval(self.model.optimizer.lr))}
           with open('%s/state.json'% logfileoutputdir, 'w') as outfile:  
               json.dump(statedata, outfile)
           print("Saved state to disk - epoch %d,  val_loss %f,  lr %f" % ( statedata['epoch'],self.min_valloss,statedata['lr'])  )
              
+          print(self.model.optimizer.variables() ) 
           return
    
       def on_batch_begin(self, batch, logs={}):

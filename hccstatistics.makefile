@@ -9,6 +9,7 @@ WORKDIR=$(TRAININGROOT)/ImageDatabase
 DATADIR=$(TRAININGROOT)/datalocation/train
 mask:        $(addprefix $(WORKDIR)/,$(addsuffix /unet/mask.nii.gz,$(UIDLIST)))
 normalize:   $(addprefix $(WORKDIR)/,$(addsuffix /Ven.normalize.nii.gz,$(UIDLIST)))
+roi:         $(addprefix $(WORKDIR)/,$(addsuffix /Ven.roi.nii.gz,$(UIDLIST)))
 combine:     $(addprefix $(DATADIR)/,$(addsuffix /TruthVen6.nii.gz,$(UIDLIST)))
 labels:      $(addprefix $(WORKDIR)/,$(addsuffix /$(DATABASEID)/tumor.nii.gz,$(UIDLIST)))
 labelsmrf:   $(addprefix $(WORKDIR)/,$(addsuffix /$(DATABASEID)/tumormrf.nii.gz,$(UIDLIST)))
@@ -28,7 +29,7 @@ $(WORKDIR)/%/unet/mask.nii.gz:
 ## intensity statistics
 qastats/%/lstat.csv: 
 	mkdir -p $(@D)
-	$(C3DEXE) $(WORKDIR)/$*/Ven.raw.nii.gz  $(DATADIR)/$*/TruthVen1.nii.gz -lstat > $(@D)/lstat.txt &&  sed "s/^\s\+/$(subst /,\/,$*),TruthVen1.nii.gz,Ven.raw.nii.gz,/g;s/\s\+/,/g;s/LabelID/InstanceUID,SegmentationID,FeatureID,LabelID/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" $(@D)/lstat.txt > $@
+	$(C3DEXE) $(WORKDIR)/$*/Ven.raw.nii.gz  $(DATADIR)/$*/TruthVen1.nii.gz -replace 2 1 3 1 4 1 5 0  -lstat > $(@D)/lstat.txt &&  sed "s/^\s\+/$(subst /,\/,$*),TruthVen1.nii.gz,Ven.raw.nii.gz,/g;s/\s\+/,/g;s/LabelID/InstanceUID,SegmentationID,FeatureID,LabelID/g;s/Vol(mm^3)/Vol.mm.3/g;s/Extent(Vox)/ExtentX,ExtentY,ExtentZ/g" $(@D)/lstat.txt > $@
 
 qastats/%/lstat.sql: qastats/%/lstat.csv
 	-sqlite3 $(SQLITEDB)  -init .loadcsvsqliterc ".import $< lstat"
@@ -38,6 +39,9 @@ $(DATADIR)/%/TruthVen6.nii.gz:
 	
 $(WORKDIR)/%/Ven.normalize.nii.gz:
 	python ./tissueshift.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
+
+$(WORKDIR)/%/Ven.roi.nii.gz:
+	python ./liverroi.py --image=$(@D)/Ven.raw.nii.gz --gmm=$(DATADIR)/$*/TruthVen1.nii.gz  
 
 $(WORKDIR)/%/$(DATABASEID)/tumormrf.nii.gz:
 	c3d -verbose $(@D)/tumor-1.nii.gz -scale .5 $(@D)/tumor-[2345].nii.gz -vote-mrf  VA .1 -o $@

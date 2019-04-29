@@ -20,6 +20,12 @@ python hccmodel.py --databaseid=hccvolnorm --builddb
 make -f hccstatistics.makefile models
 make -f hccstatistics.makefile labels
 
+python hccmodel.py --databaseid=hccvolnorm --trainingresample=384 --initialize
+python hccmodel.py --databaseid=hccvolnorm --trainingresample=384 --setuptestset
+python hccmodel.py --databaseid=hccvolnorm --trainingresample=384 --builddb
+make -f hccstatistics.makefile models
+make -f hccstatistics.makefile labels
+
 python hccmodel.py --databaseid=hccvolnorm --trainingresample=512 --initialize
 python hccmodel.py --databaseid=hccvolnorm --trainingresample=512 --setuptestset
 python hccmodel.py --databaseid=hccvolnorm --trainingresample=512 --builddb
