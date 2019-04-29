@@ -913,7 +913,7 @@ elif (options.traintumor):
               json.dump(statedata, outfile)
           print("Saved state to disk - epoch %d,  val_loss %f,  lr %f" % ( statedata['epoch'],self.min_valloss,statedata['lr'])  )
              
-          print(self.model.optimizer.variables() ) 
+          #print(self.model.optimizer.variables() ) 
           return
    
       def on_batch_begin(self, batch, logs={}):
