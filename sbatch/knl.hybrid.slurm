@@ -68,4 +68,4 @@ export KMP_SETTINGS=1
 export KMP_AFFINITY=granularity=fine,verbose,compact,1,0
 
 # Launch MPI code... 
-mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./hccmodel.py --databaseid=hccvolnorm --traintumor --idfold=0 --kfolds=5 --numepochs=100 --trainingmodel=full --trainingbatch=20 --validationbatch=20  --trainingresample=512 
+mpiexec.hydra -l -ppn 1 -n 1 taskset -c 0-64,68-132,136-200,204-268  python3 ./hccmodel.py --databaseid=hccroinorm --traintumor --idfold=0 --kfolds=5 --trainingresample=384 --numepochs=100  --trainingbatch=8 --validationbatch=8
