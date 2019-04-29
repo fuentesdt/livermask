@@ -847,6 +847,8 @@ elif (options.traintumor):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'hccvolnorm'):
     liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+  elif( options.databaseid == 'hccroinorm'):
+    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
   elif( options.databaseid == 'crc'):
     liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
   else:
