@@ -115,7 +115,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
      segout = loaded_model.predict(predict_vector[slice(0,nslice),:,:,:]  )
 
      # post processing
-     postprocessingcmd = '%s -verbose  %s  -scale .5 %s  -vote -o %s' % (options.c3dexe,  options.segmentation.replace('.nii.gz', '-[01].nii.gz' ), options.segmentation.replace('.nii.gz','-[23456789].nii.gz'), options.segmentation)
+     postprocessingcmd = '%s -verbose %s  -scale .5  %s  -scale .5 %s  -vote -o %s' % (options.c3dexe,  options.segmentation.replace('.nii.gz', '-0.nii.gz' ),  options.segmentation.replace('.nii.gz', '-1.nii.gz' ), options.segmentation.replace('.nii.gz','-[23456789].nii.gz'), options.segmentation)
 
   else:
      # apply 2d model to all slices
