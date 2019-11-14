@@ -1,7 +1,15 @@
 #!/bin/bash
+----------
+Code used for:
 
+Morshid, A., Elsayes, K.M., Khalaf, A.M., Elmohr, M.M., Yu, J., Kaseb, A.O., Hassan, M., Mahvash, A., Wang, Z., Hazle, J.D. and Fuentes, D., 2019. A machine learning model to predict hepatocellular carcinoma response to transcatheter arterial chemoembolization. Radiology: Artificial Intelligence, 1(5), p.e180021.
+
+
+----------
 Script for segmentation
-Originally by David Fuentes, MD Anderson Cancer Center
+Originally  provided by SPIE-MI 2018: SC-1235 Deep Learning for Image Understanding: https://spie.org/education/courses/coursedetail/SC1235
+
+Edited by David Fuentes, MD Anderson Cancer Center
 Edited by Jonas Actor, Rice University
 25 Feb 2019
 
