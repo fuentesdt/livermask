@@ -44,9 +44,9 @@ python hccmodel.py --databaseid=hccnorm --builddb
 make -f hccstatistics.makefile models
 make -f hccstatistics.makefile labels
 
-python hccmodel.py --trainingresample 512 --databaseid=crc --initialize
-python hccmodel.py --trainingresample 512 --databaseid=crc --setupcrctestset
-python hccmodel.py --trainingresample 512 --databaseid=crc --builddb
+python hccmodel.py --trainingresample=512 --databaseid=crc --initialize
+python hccmodel.py --trainingresample=512 --databaseid=crc --setupcrctestset
+python hccmodel.py --trainingresample=512 --databaseid=crc --builddb
 make -f crcstatistics.makefile models
 make -f crcstatistics.makefile labels
 

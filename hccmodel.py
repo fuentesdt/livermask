@@ -443,6 +443,7 @@ elif (options.traintumor):
   # segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
   # segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
 
+  os.environ["CUDA_VISIBLE_DEVICES"] = "1"
   import keras
   import tensorflow as tf
   print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
@@ -1076,7 +1077,7 @@ elif (options.setupcrctestset):
         modelprereq    = '%s/tumormodelunet.json' % uidoutputdir
         modelweights   = '%s/tumormodelunet.h5' % uidoutputdir
         fileHandle.write('%s: \n' % modelprereq  )
-        fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --trainingsolver=%s --idfold=%d --kfolds=%d --numepochs=50\n' % (options.databaseid,trainingsolverid,iii,options.kfolds))
+        fileHandle.write('\tpython hccmodel.py --databaseid=%s --traintumor --trainingsolver=%s --idfold=%d --kfolds=%d --trainingresample=%d --numepochs=50\n' % (options.databaseid,trainingsolverid,iii,options.kfolds,options.trainingresample))
         modeltargetlist.append(modelprereq    )
         uiddictionary[iii]=[]
         for idtest in test_set:
