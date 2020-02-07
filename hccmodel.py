@@ -278,7 +278,12 @@ elif (options.builddb):
     # error check
     assert numpyimage.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
     nslice = numpyimage.shape[2]
-    resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
+    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
+      print("no resizing")
+      resimage=numpyimage
+    else:
+      print("resizing image")
+      resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
 
     # load nifti file
     truthdata = nib.load(truthlocation )
@@ -286,7 +291,12 @@ elif (options.builddb):
     # error check
     assert numpytruth.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
     assert nslice  == numpytruth.shape[2]
-    restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
+    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
+      print("no resizing")
+      restruth=numpytruth
+    else:
+      print("resizing image")
+      restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
 
     # bounding box for each label
     if( np.max(restruth) ==1 ) :
