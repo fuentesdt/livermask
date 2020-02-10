@@ -90,7 +90,8 @@ trainingdictionary = {'hcc':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestH
                       'hccvol':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumordata.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'hccvolnorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumornorm.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
                       'hccroinorm':{'dbfile':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse/datalocation/tumorroi.csv','rootlocation':'/rsrch1/ip/dtfuentes/github/RandomForestHCCResponse'},
-                      'crc':{'dbfile':'./crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
+                      'dbg':{'dbfile':'/home/fuentes/dbgtrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' },
+                      'crc':{'dbfile':'/home/fuentes/crctrainingdata.csv','rootlocation':'/rsrch1/ip/jacctor/LiTS/LiTS' }}
 
 # options dependency 
 options.dbfile       = trainingdictionary[options.databaseid]['dbfile']
@@ -232,120 +233,84 @@ CREATE TABLE overlap(
    PRIMARY KEY (InstanceUID,FirstImage,SecondImage,LabelID) );
 """
 
+os.environ["CUDA_VISIBLE_DEVICES"]="1" 
+import keras
+import tensorflow as tf
+print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
+# https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
+class DataGenerator(keras.utils.Sequence):
+    'Generates data for Keras'
+    def __init__(self, images, labels, batch_size=32, dim=(32,32,32), 
+                 n_classes=10):
+        'Initialization'
+        self.dim = dim
+        self.batch_size = batch_size
+        self.labels = labels
+        self.images = images
+        #self.n_channels = n_channels
+        self.n_classes = n_classes
+        #self.shuffle = shuffle
+        #self.on_epoch_end()
 
-#############################################################
-# build initial sql file 
-#############################################################
-if (options.initialize ):
-  import sqlite3
-  import pandas
-  # build new database
-  os.system('rm %s'  % options.sqlitefile )
-  tagsconn = sqlite3.connect(options.sqlitefile )
-  for sqlcmd in initializedb.split(";"):
-     tagsconn.execute(sqlcmd )
-  # load csv file
-  df = pandas.read_csv(options.dbfile,delimiter='\t')
-  df.to_sql('trainingdata', tagsconn , if_exists='append', index=False)
+    def __len__(self):
+        'Denotes the number of batches per epoch'
+        return int(np.floor(len(self.images) / self.batch_size))
 
-##########################
-# preprocess database and store to disk
-##########################
-elif (options.builddb):
-  import nibabel as nib  
-  from scipy import ndimage
-  import skimage.transform
+    def __getitem__(self, index):
+        'Generate one batch of data'
+        # Generate indexes of the batch
+        indexes = slice(index*self.batch_size,(index+1)*self.batch_size)
+        ##print("myindex:", index,indexes )
 
-  # create  custom data frame database type
-  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
+        # Generate data
+        X, y = self.__data_generation(indexes )
 
-  # initialize empty dataframe
-  numpydatabase = np.empty(0, dtype=mydatabasetype  )
+        return X, y
 
-  # build data base 
-  databaseinfo = GetDataDictionary()
+    ## def on_epoch_end(self):
+    ##     'Updates indexes after each epoch'
+    ##     self.indexes = np.arange(len(self.list_IDs))
+    ##     if self.shuffle == True:
+    ##         np.random.shuffle(self.indexes)
 
-  # load all data 
-  totalnslice = 0 
-  for idrow in databaseinfo.keys():
-    row = databaseinfo[idrow ]
-    imagelocation = '%s/%s' % (options.rootlocation,row['image'])
-    truthlocation = '%s/%s' % (options.rootlocation,row['label'])
+    def __data_generation(self, indexes ):
+        'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
 
-    # load nifti file
-    imagedata = nib.load(imagelocation )
-    numpyimage= imagedata.get_data().astype(IMG_DTYPE )
-    # error check
-    assert numpyimage.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
-    nslice = numpyimage.shape[2]
-    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
-      print("no resizing")
-      resimage=numpyimage
-    else:
-      print("resizing image")
-      resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
+        # Convert the labels into a one-hot representation
+        from keras.utils.np_utils import to_categorical
+        
+        # Convert to uint8 data and find out how many labels.
+        bx_train = self.images[indexes,:,:,np.newaxis]
+        by_train = self.labels[indexes]
+        y_train_one_hot = to_categorical(by_train , num_classes=self.n_classes).reshape((by_train.shape)+(self.n_classes,))
+        # The liver neuron should also be active for lesions within the liver
+        # FIXME - HACK - data nuances
+        if( options.databaseid == 'hcc'):
+          liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+        elif( options.databaseid == 'hccnorm'):
+          liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+        elif( options.databaseid == 'hccvol'):
+          liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+        elif( options.databaseid == 'hccvolnorm'):
+          liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+        elif( options.databaseid == 'hccroinorm'):
+          liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
+        elif( options.databaseid == 'crc' or options.databaseid == 'dbg'):
+          liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
+        else:
+          raise("unknown  dataset")
+        y_train_one_hot[:,:,:,1]=liver
+        
+        # vectorize input assume that liver mask is given
+        x_train_vector = np.repeat(bx_train,2,axis=3)
+        x_train_vector[:,:,:,1]=liver
 
-    # load nifti file
-    truthdata = nib.load(truthlocation )
-    numpytruth= truthdata.get_data().astype(SEG_DTYPE)
-    # error check
-    assert numpytruth.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
-    assert nslice  == numpytruth.shape[2]
-    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
-      print("no resizing")
-      restruth=numpytruth
-    else:
-      print("resizing image")
-      restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
+        ##print("X - Shape before: {}; Shape after: {}".format(bx_train.shape, x_train_vector.shape))
+        ##print("Y - Shape before: {}; Shape after: {}".format(by_train.shape, y_train_one_hot.shape))
 
-    # bounding box for each label
-    if( np.max(restruth) ==1 ) :
-      (liverboundingbox,)  = ndimage.find_objects(restruth)
-      tumorboundingbox  = None
-    else:
-      boundingboxes = ndimage.find_objects(restruth)
-      liverboundingbox = boundingboxes[0]
+        return x_train_vector, y_train_one_hot 
 
-    # FIXME do we need this ?
-    tumorboundingbox  = None
-
-    print(idrow, imagelocation,truthlocation, nslice )
-
-    # error check
-    if( nslice  == restruth.shape[2]):
-      # custom data type to subset  
-      datamatrix = np.zeros(nslice  , dtype=mydatabasetype )
-      
-      # custom data type to subset  
-      datamatrix ['dataid']          = np.repeat(idrow ,nslice  ) 
-      #datamatrix ['xbounds']      = np.repeat(boundingbox[0],nslice  ) 
-      #datamatrix ['ybounds']      = np.repeat(boundingbox[1],nslice  ) 
-      #datamatrix ['zbounds']      = np.repeat(boundingbox[2],nslice  ) 
-      #datamatrix ['nslice' ]      = np.repeat(nslice,nslice  ) 
-      # id the slices within the bounding box
-      axialliverbounds                              = np.repeat(False,nslice  ) 
-      axialtumorbounds                              = np.repeat(False,nslice  ) 
-      axialliverbounds[liverboundingbox[2]]         = True
-      if (tumorboundingbox != None):
-        axialtumorbounds[tumorboundingbox[2]]       = True
-      datamatrix ['axialliverbounds'   ]            = axialliverbounds
-      datamatrix ['axialtumorbounds'  ]             = axialtumorbounds
-      datamatrix ['imagedata']                      = resimage.transpose(2,1,0) 
-      datamatrix ['truthdata']                      = restruth.transpose(2,1,0)  
-      numpydatabase = np.hstack((numpydatabase,datamatrix))
-      # count total slice for QA
-      totalnslice = totalnslice + nslice 
-    else:
-      print('training data error image[2] = %d , truth[2] = %d ' % (nslice,restruth.shape[2]))
-
-  # save numpy array to disk
-  np.save( options.globalnpfile,numpydatabase )
-
-##########################
-# build NN model for tumor segmentation
-##########################
-elif (options.traintumor):
-
+def  TrainMyUnet():
   # load database
   print('loading memory map db for large dataset')
   #numpydatabase = np.load(options.globalnpfile,mmap_mode='r')
@@ -389,11 +354,12 @@ elif (options.traintumor):
   #trainingsubset = numpydatabase[subsetidx   ].copy()
   trainingsubset   = numpydatabase[subsetidx_train      ]
   validationsubset = numpydatabase[subsetidx_validation ]
+  # 
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
-  np.random.shuffle(trainingsubset )
-  np.random.shuffle(validationsubset )
+  #np.random.shuffle(trainingsubset )
+  #np.random.shuffle(validationsubset )
 
   # subset within bounding box that has liver
   totnslice = len(trainingsubset) + len(validationsubset)
@@ -443,10 +409,11 @@ elif (options.traintumor):
   # segnii = nib.Nifti1Image(y_train[: ,:,:] , None )
   # segnii.to_filename( '%s/trainingseg.nii.gz' % anonymizeoutputlocation )
 
-  os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-  import keras
-  import tensorflow as tf
-  print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
+  t_max=np.max(y_train)
+  print("Range of values: [0, {}]".format(t_max))
+  train_iter = DataGenerator(x_train[TRAINING_SLICES]  ,y_train[TRAINING_SLICES]   , batch_size=options.trainingbatch, dim=(512,512), n_classes=t_max+1)
+  valid_iter = DataGenerator(x_train[VALIDATION_SLICES],y_train[VALIDATION_SLICES ], batch_size=options.trainingbatch, dim=(512,512), n_classes=t_max+1)
+
   from keras.layers import InputLayer, Conv2D, MaxPool2D, Flatten, Dense, UpSampling2D, LocallyConnected2D
   from keras.models import Model, Sequential
 
@@ -839,37 +806,6 @@ elif (options.traintumor):
       voldiceloss =  dice_batchloss(y_true, y_pred)
       return -voldiceloss[5]
 
-  # Convert the labels into a one-hot representation
-  from keras.utils.np_utils import to_categorical
-  
-  # Convert to uint8 data and find out how many labels.
-  t=y_train.astype(np.uint8)
-  t_max=np.max(t)
-  print("Range of values: [0, {}]".format(t_max))
-  y_train_one_hot = to_categorical(t, num_classes=t_max+1).reshape((y_train.shape)+(t_max+1,))
-  print("Shape before: {}; Shape after: {}".format(y_train.shape, y_train_one_hot.shape))
-  # The liver neuron should also be active for lesions within the liver
-  # FIXME - HACK - data nuances
-  if( options.databaseid == 'hcc'):
-    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
-  elif( options.databaseid == 'hccnorm'):
-    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
-  elif( options.databaseid == 'hccvol'):
-    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
-  elif( options.databaseid == 'hccvolnorm'):
-    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
-  elif( options.databaseid == 'hccroinorm'):
-    liver = np.max(y_train_one_hot[:,:,:,1:-1], axis=3)
-  elif( options.databaseid == 'crc'):
-    liver = np.max(y_train_one_hot[:,:,:,1:], axis=3)
-  else:
-    raise("unknown  dataset")
-  y_train_one_hot[:,:,:,1]=liver
-  
-  # vectorize input assume that liver mask is given
-  x_train_vector = np.repeat(x_train[:,:,:,np.newaxis],2,axis=3)
-  x_train_vector[:,:,:,1]=liver
-
   # output location
   logfileoutputdir= _globaldirectorytemplate % (options.databaseid,options.trainingloss+ _xstr(options.sampleweight),options.trainingmodel,options.trainingsolver,options.trainingresample,options.trainingid,options.trainingbatch,options.validationbatch,options.kfolds,options.idfold)
 
@@ -982,12 +918,12 @@ elif (options.traintumor):
   # FIXME - better to use more epochs on a single one-hot model? or break up into multiple models steps?
   # FIXME -  IE liver mask first then resize to the liver for viable/necrosis ? 
 
-  from keras.preprocessing.image import ImageDataGenerator
+  ##from keras.preprocessing.image import ImageDataGenerator
   # Data generator for training. Allows different workers to request batches without interfering with other workers
-  train_gen = ImageDataGenerator()
-  valid_gen = ImageDataGenerator()
-  #steps_per_epoch = (len(x_train_vector[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
-  steps_per_epoch = len(x_train_vector) // options.trainingbatch
+  ##train_gen = ImageDataGenerator()
+  ##valid_gen = ImageDataGenerator()
+  #steps_per_epoch = (len(x_train[TRAINING_SLICES,...]) // options.trainingbatch) // hvd.size() 
+  steps_per_epoch = len(x_train) // options.trainingbatch
   ## config file for image processor
   ## $ cat ~/.keras/keras.json 
   ## {
@@ -996,13 +932,13 @@ elif (options.traintumor):
   ##     "backend": "tensorflow",
   ##     "image_data_format": "channels_first"
   ## }
-  train_iter = train_gen.flow(x_train_vector[TRAINING_SLICES ,:,:,:],
-                              y_train_one_hot[TRAINING_SLICES ],
-                              sample_weight=myweights,
-                              batch_size = options.trainingbatch)
-  valid_iter = valid_gen.flow(x_train_vector[VALIDATION_SLICES ,:,:,:],
-                              y_train_one_hot[VALIDATION_SLICES ], 
-                              batch_size = options.validationbatch)
+  ## train_iter = train_gen.flow(x_train_vector[TRAINING_SLICES ,:,:,:],
+  ##                             y_train_one_hot[TRAINING_SLICES ],
+  ##                             sample_weight=myweights,
+  ##                             batch_size = options.trainingbatch)
+  ## valid_iter = valid_gen.flow(x_train_vector[VALIDATION_SLICES ,:,:,:],
+  ##                             y_train_one_hot[VALIDATION_SLICES ], 
+  ##                             batch_size = options.validationbatch)
 
   # fit_generator must be used instead of model.fit for distributed training
   history = model.fit_generator(train_iter,
@@ -1010,12 +946,126 @@ elif (options.traintumor):
                       validation_data=valid_iter,
                       callbacks = [tensorboard,callbacksave],  # Note callbacksave is disabled
                       #workers = 1,           # More testing needs to be done to see how workers/use_multiprocessing impact horovod
-                      #use_multiprocessing = False,
+                      use_multiprocessing = False,
                       verbose = 1,
                       initial_epoch=statevars['epoch'],
                       epochs=options.numepochs)
 
   
+
+#############################################################
+# build initial sql file 
+#############################################################
+if (options.initialize ):
+  import sqlite3
+  import pandas
+  # build new database
+  os.system('rm %s'  % options.sqlitefile )
+  tagsconn = sqlite3.connect(options.sqlitefile )
+  for sqlcmd in initializedb.split(";"):
+     tagsconn.execute(sqlcmd )
+  # load csv file
+  df = pandas.read_csv(options.dbfile,delimiter='\t')
+  df.to_sql('trainingdata', tagsconn , if_exists='append', index=False)
+
+##########################
+# preprocess database and store to disk
+##########################
+elif (options.builddb):
+  import nibabel as nib  
+  from scipy import ndimage
+  import skimage.transform
+
+  # create  custom data frame database type
+  mydatabasetype = [('dataid', int), ('axialliverbounds',bool), ('axialtumorbounds',bool), ('imagedata','(%d,%d)int16' %(options.trainingresample,options.trainingresample)),('truthdata','(%d,%d)uint8' % (options.trainingresample,options.trainingresample))]
+
+  # initialize empty dataframe
+  numpydatabase = np.empty(0, dtype=mydatabasetype  )
+
+  # build data base 
+  databaseinfo = GetDataDictionary()
+
+  # load all data 
+  totalnslice = 0 
+  for idrow in databaseinfo.keys():
+    row = databaseinfo[idrow ]
+    imagelocation = '%s/%s' % (options.rootlocation,row['image'])
+    truthlocation = '%s/%s' % (options.rootlocation,row['label'])
+
+    # load nifti file
+    imagedata = nib.load(imagelocation )
+    numpyimage= imagedata.get_data().astype(IMG_DTYPE )
+    # error check
+    assert numpyimage.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
+    nslice = numpyimage.shape[2]
+    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
+      print("no resizing")
+      resimage=numpyimage
+    else:
+      print("resizing image")
+      resimage=skimage.transform.resize(numpyimage,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(IMG_DTYPE)
+
+    # load nifti file
+    truthdata = nib.load(truthlocation )
+    numpytruth= truthdata.get_data().astype(SEG_DTYPE)
+    # error check
+    assert numpytruth.shape[0:2] == (_globalexpectedpixel,_globalexpectedpixel)
+    assert nslice  == numpytruth.shape[2]
+    if (options.trainingresample,options.trainingresample)  ==  (_globalexpectedpixel,_globalexpectedpixel):
+      print("no resizing")
+      restruth=numpytruth
+    else:
+      print("resizing image")
+      restruth=skimage.transform.resize(numpytruth,(options.trainingresample,options.trainingresample,nslice),order=0,mode='constant',preserve_range=True).astype(SEG_DTYPE)
+
+    # bounding box for each label
+    if( np.max(restruth) ==1 ) :
+      (liverboundingbox,)  = ndimage.find_objects(restruth)
+      tumorboundingbox  = None
+    else:
+      boundingboxes = ndimage.find_objects(restruth)
+      liverboundingbox = boundingboxes[0]
+
+    # FIXME do we need this ?
+    tumorboundingbox  = None
+
+    print(idrow, imagelocation,truthlocation, nslice )
+
+    # error check
+    if( nslice  == restruth.shape[2]):
+      # custom data type to subset  
+      datamatrix = np.zeros(nslice  , dtype=mydatabasetype )
+      
+      # custom data type to subset  
+      datamatrix ['dataid']          = np.repeat(idrow ,nslice  ) 
+      #datamatrix ['xbounds']      = np.repeat(boundingbox[0],nslice  ) 
+      #datamatrix ['ybounds']      = np.repeat(boundingbox[1],nslice  ) 
+      #datamatrix ['zbounds']      = np.repeat(boundingbox[2],nslice  ) 
+      #datamatrix ['nslice' ]      = np.repeat(nslice,nslice  ) 
+      # id the slices within the bounding box
+      axialliverbounds                              = np.repeat(False,nslice  ) 
+      axialtumorbounds                              = np.repeat(False,nslice  ) 
+      axialliverbounds[liverboundingbox[2]]         = True
+      if (tumorboundingbox != None):
+        axialtumorbounds[tumorboundingbox[2]]       = True
+      datamatrix ['axialliverbounds'   ]            = axialliverbounds
+      datamatrix ['axialtumorbounds'  ]             = axialtumorbounds
+      datamatrix ['imagedata']                      = resimage.transpose(2,1,0) 
+      datamatrix ['truthdata']                      = restruth.transpose(2,1,0)  
+      numpydatabase = np.hstack((numpydatabase,datamatrix))
+      # count total slice for QA
+      totalnslice = totalnslice + nslice 
+    else:
+      print('training data error image[2] = %d , truth[2] = %d ' % (nslice,restruth.shape[2]))
+
+  # save numpy array to disk
+  np.save( options.globalnpfile,numpydatabase )
+
+##########################
+# build NN model for tumor segmentation
+##########################
+elif (options.traintumor):
+    TrainMyUnet()
 ##########################
 # apply model to test set
 ##########################
