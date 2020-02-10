@@ -358,7 +358,7 @@ def  TrainMyUnet():
 
   # ensure we get the same results each time we run the code
   np.random.seed(seed=0) 
-  #np.random.shuffle(trainingsubset )
+  np.random.shuffle(trainingsubset )
   #np.random.shuffle(validationsubset )
 
   # subset within bounding box that has liver
@@ -845,20 +845,21 @@ def  TrainMyUnet():
              print("Saved model to disk " )
 
              # output predictions
-             if (options.trainingid == 'run_a'):
-               import nibabel as nib  
-               validationimgnii = nib.Nifti1Image(x_train[VALIDATION_SLICES,:,:] , None )
-               validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
-               validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
-               validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
-               y_predicted = self.model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
-               # liver mask should be close to 1.
-               y_predicted[:,:,:,1] = .5 * y_predicted[:,:,:,1] 
-               y_segmentation = np.argmax(y_predicted , axis=-1)
-               validationprediction = nib.Nifti1Image(y_predicted, None )
-               validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
-               validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
-               validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
+             # FIXME -- output predictions 
+             ## if (options.trainingid == 'run_a'):
+             ##   import nibabel as nib  
+             ##   validationimgnii = nib.Nifti1Image(x_train[VALIDATION_SLICES,:,:] , None )
+             ##   validationimgnii.to_filename( '%s/validationimg.nii.gz' % logfileoutputdir )
+             ##   validationonehotnii = nib.Nifti1Image(y_train[VALIDATION_SLICES  ,:,:] , None )
+             ##   validationonehotnii.to_filename( '%s/validationseg.nii.gz' % logfileoutputdir )
+             ##   y_predicted = self.model.predict(x_train_vector[VALIDATION_SLICES,:,:,:])
+             ##   # liver mask should be close to 1.
+             ##   y_predicted[:,:,:,1] = .5 * y_predicted[:,:,:,1] 
+             ##   y_segmentation = np.argmax(y_predicted , axis=-1)
+             ##   validationprediction = nib.Nifti1Image(y_predicted, None )
+             ##   validationprediction.to_filename( '%s/validationpredict.nii.gz' % logfileoutputdir )
+             ##   validationoutput     = nib.Nifti1Image( y_segmentation.astype(np.uint8), None )
+             ##   validationoutput.to_filename( '%s/validationoutput.nii.gz' % logfileoutputdir )
 
           # save state to restart
           statedata = {'epoch':epoch+1, 'valloss':self.min_valloss, 'lr':float(K.eval(self.model.optimizer.lr))}
