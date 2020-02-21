@@ -48,6 +48,7 @@ python hccmodel.py --trainingresample=512 --databaseid=crc --initialize
 python hccmodel.py --trainingresample=512 --databaseid=crc --setupcrctestset
 python hccmodel.py --trainingresample=512 --databaseid=crc --builddb
 make -f crcstatistics.makefile models
+make -f crcstatistics.makefile setup
 make -f crcstatistics.makefile labels
 
 python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz

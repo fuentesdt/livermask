@@ -73,6 +73,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
   # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+  os.environ["CUDA_VISIBLE_DEVICES"]="1" 
   import keras
   import tensorflow as tf
   print("keras version: ",keras.__version__, 'TF version:',tf.__version__)
@@ -96,9 +97,9 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   assert numpypredict.shape[0:2] == (_glexpx,_glexpx)
   nslice = numpypredict.shape[2]
   print('nslice = %d' % nslice)
-  resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
   
   if (options.maskimage != None):
+     resizepredict = numpypredict.transpose(2,1,0)
      imagemask = nib.load(options.maskimage)
      maskheader  = imagemask.header
      numpymask = imagemask.get_data().astype(SEG_DTYPE )
@@ -106,7 +107,8 @@ if (options.predictimage != None and options.segmentation != None and options.c3
      assert numpymask.shape[0:2] == (_glexpx,_glexpx)
      masknslice = numpymask.shape[2]
      assert masknslice  ==  nslice
-     resize_mask = skimage.transform.resize(numpymask,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
+     #resize_mask = skimage.transform.resize(numpymask,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
+     resize_mask = numpymask.transpose(2,1,0)
 
      # bind the image and mask
      predict_vector = np.repeat(resizepredict [:,:,:,np.newaxis],2,axis=3)
@@ -119,6 +121,7 @@ if (options.predictimage != None and options.segmentation != None and options.c3
      postprocessingcmd = '%s -verbose %s  -scale .5  %s  -scale .5 %s  -vote -o %s' % (options.c3dexe,  options.segmentation.replace('.nii.gz', '-0.nii.gz' ),  options.segmentation.replace('.nii.gz', '-1.nii.gz' ), options.segmentation.replace('.nii.gz','-[23456789].nii.gz'), options.segmentation)
 
   else:
+     resizepredict = skimage.transform.resize(numpypredict,(options.trainingresample,options.trainingresample,nslice ),order=0,preserve_range=True,mode='constant').astype(IMG_DTYPE).transpose(2,1,0)
      # apply 2d model to all slices
      segout = loaded_model.predict(resizepredict[:,:,:,np.newaxis] )
 
@@ -133,7 +136,10 @@ if (options.predictimage != None and options.segmentation != None and options.c3
   # write out each one-hot image
   numlabel = segout.shape[-1]
   for jjj in range(numlabel):
-      segout_resize = skimage.transform.resize(segout[...,jjj],(nslice,_glexpx,_glexpx),order=0,preserve_range=True,mode='constant').transpose(2,1,0)
+      if (options.maskimage != None):
+         segout_resize = segout[...,jjj].transpose(2,1,0)
+      else:
+         segout_resize = skimage.transform.resize(segout[...,jjj],(nslice,_glexpx,_glexpx),order=0,preserve_range=True,mode='constant').transpose(2,1,0)
       segout_img = nib.Nifti1Image(segout_resize, None, header=imageheader)
       segout_img.to_filename( options.segmentation.replace('.nii.gz', '-%d.nii.gz' % jjj) )
 
