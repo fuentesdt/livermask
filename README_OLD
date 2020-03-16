@@ -55,7 +55,6 @@ python hccmodel.py --trainingresample=512 --databaseid=hccvol --initialize
 python hccmodel.py --trainingresample=512 --databaseid=hccvol --setuptestset
 python hccmodel.py --trainingresample=512 --databaseid=hccvol --builddb
 make -f hccstatistics.makefile models
-make -f hccstatistics.makefile setup
 make -f hccstatistics.makefile labels
 
 python hccmodel.py --predictimage=UID/image.nii.gz --predictmodel=UID/tumormodelunet.json --segmentation=UID/label.nii.gz
